@@ -1,12 +1,12 @@
 # Boomerang Project - Hotel Booking Management System
 
-## 🔹 a) Project Title
+##  a) Project Title
 **Boomerang Project - Hotel Booking Management System**
 
-## 🔹 b) Task Option Chosen
+##  b) Task Option Chosen
 **Task Option 1** - Web-Based Admin Dashboard (Hotel Booking Management System)
 
-## 🔹 c) Technologies Used
+##  c) Technologies Used
 - **Backend**: PHP 7.4+
 - **Database**: MySQL 5.7+
 - **Frontend**: Bootstrap 5.3.0, HTML5, CSS3, JavaScript
@@ -14,15 +14,15 @@
 - **Icons**: Font Awesome 6.0.0
 - **Database Access**: PDO with prepared statements
 
-## 🔹 d) Features Implemented
-1. **🔐 Secure Authentication System** - Role-based access control with Super Admin and Admin roles
-2. **👥 Customer Management** - Add, edit, view customers with detailed profiles and booking history
-3. **🏠 Hotel Booking Management** - Create bookings, track status (Pending→Confirmed→Checked In→Checked Out), manage payments
-4. **📊 Analytics Dashboard** - Real-time statistics, interactive charts, booking trends, revenue tracking
-5. **📋 Reporting System** - Generate booking reports, export functionality, customer analytics
-6. **📱 Responsive Design** - Fixed sidebar navigation, mobile-friendly interface, modern UI
+##  d) Features Implemented
+1. ** Secure Authentication System** - Role-based access control with Super Admin and Admin roles
+2. ** Customer Management** - Add, edit, view customers with detailed profiles and booking history
+3. ** Hotel Booking Management** - Create bookings, track status (Pending→Confirmed→Checked In→Checked Out), manage payments
+4. ** Analytics Dashboard** - Real-time statistics, interactive charts, booking trends, revenue tracking
+5. ** Reporting System** - Generate booking reports, export functionality, customer analytics
+6. ** Responsive Design** - Fixed sidebar navigation, mobile-friendly interface, modern UI
 
-## 🔹 e) Instructions to Run the Project
+##  e) Instructions to Run the Project
 
 ### Prerequisites:
 - XAMPP/WAMP/LAMP server
@@ -69,12 +69,12 @@
 
 **Note**: Change default password after first login for security!
 
-## 🔐 Authentication & Security
+##  Authentication & Security
 - **Role-based Access Control**: Super Admin and Admin roles
 - **Secure Login System**: Password hashing and session management
 - **Authentication Middleware**: Protected routes and admin verification
 
-## 👥 Customer Management
+##  Customer Management
 - **Customer Registration**: Add new customers with detailed information
 - **Customer Profiles**: Comprehensive customer details including:
   - Personal information (name, email, phone, address)
@@ -85,7 +85,7 @@
 - **Customer Details View**: Detailed modal with booking history and statistics
 - **Customer Statistics**: Total bookings, spending, favorite room types
 
-## 🏠 Hotel Booking Management
+##  Hotel Booking Management
 - **Booking Creation**: Create new hotel bookings with room details
 - **Room Management**: Support for different room types and configurations
 - **Booking Status Tracking**: 
@@ -96,7 +96,7 @@
 - **Guest Management**: Track number of guests and rooms
 - **Special Requests**: Handle customer special requirements
 
-## 📊 Analytics & Reporting
+##  Analytics & Reporting
 - **Dashboard Analytics**: Real-time statistics and metrics
 - **Booking Trends**: Monthly booking patterns and revenue analysis
 - **Room Analytics**: Popular room types and occupancy rates
@@ -106,7 +106,7 @@
 - **Revenue Tracking**: Total revenue, average booking values
 - **Report Generation**: Export booking reports in HTML format
 
-## 🎨 User Interface
+##  User Interface
 - **Modern Design**: Clean, responsive Bootstrap 5 interface
 - **Fixed Sidebar**: Persistent navigation that doesn't scroll
 - **Responsive Layout**: Works on desktop, tablet, and mobile devices
@@ -114,7 +114,7 @@
 - **Modal Dialogs**: Clean forms for adding/editing data
 - **Color-coded Status**: Visual indicators for different statuses
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 - **Backend**: PHP 7.4+
 - **Database**: MySQL 5.7+
@@ -123,7 +123,7 @@
 - **Charts**: Chart.js
 - **Database Access**: PDO with prepared statements
 
-## 📋 Requirements
+## Requirements
 
 - PHP 7.4 or higher
 - MySQL 5.7 or higher
@@ -131,7 +131,7 @@
 - PDO MySQL extension
 - GD extension (for charts)
 
-## 🚀 Installation
+## Installation
 
 ### 1. Clone the Repository
 ```bash
@@ -164,9 +164,9 @@ The system creates a default super admin account:
 - **Password**: admin123
 - **Role**: Super Admin
 
-⚠️ **Important**: Change the default password after first login!
+**Important**: Change the default password after first login!
 
-## 📁 Project Structure
+##  Project Structure
 
 ```
 Boomerang_project/
@@ -189,7 +189,7 @@ Boomerang_project/
 └── README.md                 # This file
 ```
 
-## 🗄️ Database Schema
+##  Database Schema
 
 ### Admins Table
 - User management for system administrators
@@ -223,7 +223,7 @@ Session and security settings in `Includes/auth.php`:
 - Password requirements
 - Role permissions
 
-## 📖 Usage Guide
+##  Usage Guide
 
 ### For Administrators
 
@@ -264,7 +264,7 @@ Session and security settings in `Includes/auth.php`:
 - **XSS Protection**: HTML escaping for output
 - **CSRF Protection**: Form token validation
 
-## 📱 Responsive Design
+## Responsive Design
 
 The system is fully responsive and works on:
 - Desktop computers
@@ -272,7 +272,7 @@ The system is fully responsive and works on:
 - Mobile phones
 - Different screen sizes and orientations
 
-## 🎯 Key Features
+## Key Features
 
 ### Real-time Analytics
 - Live dashboard with current statistics
@@ -313,7 +313,7 @@ The system is fully responsive and works on:
    - Check session configuration
    - Verify admin credentials
 
-## 🔄 Updates and Maintenance
+##  Updates and Maintenance
 
 ### Regular Maintenance
 - Monitor database performance
@@ -327,7 +327,7 @@ The system is fully responsive and works on:
 - Maintain responsive design principles
 - Test thoroughly before deployment
 
-## 📞 Support
+##  Support
 
 For technical support or feature requests:
 - Check the documentation
@@ -338,7 +338,7 @@ For technical support or feature requests:
 
 This project is developed by J.A Venura Jayasingha for BOOMERANG SOFTWARE ENGINEER RECRUITMENT PROCESS.
 
-## 🚀 Future Enhancements
+##  Future Enhancements
 
 Potential features for future versions:
 - Email notifications
