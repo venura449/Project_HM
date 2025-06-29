@@ -13,16 +13,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     switch ($action) {
         case 'add_booking':
             $customer_id = $_POST['customer_id'] ?? '';
-            $service_type = trim($_POST['service_type'] ?? '');
-            $booking_date = $_POST['booking_date'] ?? '';
-            $booking_time = $_POST['booking_time'] ?? '';
-            $duration = (int)($_POST['duration'] ?? 60);
+            $room_type = trim($_POST['room_type'] ?? '');
+            $check_in_date = $_POST['check_in_date'] ?? '';
+            $check_out_date = $_POST['check_out_date'] ?? '';
+            $num_guests = (int)($_POST['num_guests'] ?? 1);
+            $num_rooms = (int)($_POST['num_rooms'] ?? 1);
             $total_amount = (float)($_POST['total_amount'] ?? 0);
             $payment_method = $_POST['payment_method'] ?? '';
-            $notes = trim($_POST['notes'] ?? '');
+            $special_requests = trim($_POST['special_requests'] ?? '');
             
-            if (empty($customer_id) || empty($service_type) || empty($booking_date) || empty($booking_time)) {
-                $error = 'Customer, service type, date, and time are required.';
+            if (empty($customer_id) || empty($room_type) || empty($check_in_date) || empty($check_out_date)) {
+                $error = 'Customer, room type, check-in date, and check-out date are required.';
+            } elseif (strtotime($check_out_date) <= strtotime($check_in_date)) {
+                $error = 'Check-out date must be after check-in date.';
             } else {
                 try {
                     $pdo = getDBConnection();
@@ -30,10 +33,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Generate booking number
                     $booking_number = 'BK' . date('Ymd') . str_pad(rand(1, 999), 3, '0', STR_PAD_LEFT);
                     
-                    $stmt = $pdo->prepare("INSERT INTO bookings (customer_id, booking_number, service_type, booking_date, booking_time, duration, total_amount, payment_method, notes, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                    $stmt->execute([$customer_id, $booking_number, $service_type, $booking_date, $booking_time, $duration, $total_amount, $payment_method, $notes, $currentAdmin['id']]);
+                    $stmt = $pdo->prepare("INSERT INTO bookings (customer_id, booking_number, room_type, check_in_date, check_out_date, num_guests, num_rooms, total_amount, payment_method, special_requests, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    $stmt->execute([$customer_id, $booking_number, $room_type, $check_in_date, $check_out_date, $num_guests, $num_rooms, $total_amount, $payment_method, $special_requests, $currentAdmin['id']]);
                     
-                    $success = 'Booking added successfully.';
+                    $success = 'Hotel booking added successfully.';
                 } catch(PDOException $e) {
                     $error = 'Database error: ' . $e->getMessage();
                 }
@@ -44,6 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $booking_id = $_POST['booking_id'] ?? '';
             $status = $_POST['status'] ?? '';
             $payment_status = $_POST['payment_status'] ?? '';
+            $room_number = trim($_POST['room_number'] ?? '');
             
             if (empty($booking_id) || empty($status)) {
                 $error = 'Booking ID and status are required.';
@@ -56,12 +60,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmt->execute([$booking_id]);
                     $booking = $stmt->fetch(PDO::FETCH_ASSOC);
                     
-                    // Update booking status
-                    $stmt = $pdo->prepare("UPDATE bookings SET status = ?, payment_status = ? WHERE id = ?");
-                    $stmt->execute([$status, $payment_status, $booking_id]);
+                    // Update booking status and room number
+                    $stmt = $pdo->prepare("UPDATE bookings SET status = ?, payment_status = ?, room_number = ? WHERE id = ?");
+                    $stmt->execute([$status, $payment_status, $room_number, $booking_id]);
                     
-                    // If booking is completed and paid, create a sale record
-                    if ($status === 'completed' && $payment_status === 'paid' && $booking) {
+                    // If booking is checked out and paid, create a sale record
+                    if ($status === 'checked_out' && $payment_status === 'paid' && $booking) {
                         // Check if sale already exists for this booking
                         $stmt = $pdo->prepare("SELECT COUNT(*) FROM sales WHERE booking_id = ?");
                         $stmt->execute([$booking_id]);
@@ -70,13 +74,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             // Generate sale number
                             $sale_number = 'SL' . date('Ymd') . str_pad(rand(1, 999), 3, '0', STR_PAD_LEFT);
                             
+                            // Calculate number of nights
+                            $check_in = new DateTime($booking['check_in_date']);
+                            $check_out = new DateTime($booking['check_out_date']);
+                            $nights = $check_in->diff($check_out)->days;
+                            
                             // Create sale record
                             $stmt = $pdo->prepare("INSERT INTO sales (booking_id, customer_id, sale_number, product_name, quantity, unit_price, total_price, discount_amount, final_amount, payment_method, payment_status, sale_date, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
                             $stmt->execute([
                                 $booking_id,
                                 $booking['customer_id'],
                                 $sale_number,
-                                $booking['service_type'],
+                                $booking['room_type'] . ' - ' . $nights . ' night' . ($nights > 1 ? 's' : ''),
                                 1, // quantity
                                 $booking['total_amount'], // unit price
                                 $booking['total_amount'], // total price
@@ -93,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
                     }
                     
-                    $success = 'Booking status updated successfully.';
+                    $success = 'Hotel booking status updated successfully.';
                 } catch(PDOException $e) {
                     $error = 'Database error: ' . $e->getMessage();
                 }
@@ -107,11 +116,11 @@ $search = $_GET['search'] ?? '';
 $status_filter = $_GET['status'] ?? '';
 $date_from = $_GET['date_from'] ?? '';
 $date_to = $_GET['date_to'] ?? '';
-$sort_by = $_GET['sort'] ?? 'booking_date';
+$sort_by = $_GET['sort'] ?? 'check_in_date';
 $sort_order = $_GET['order'] ?? 'DESC';
 
 // Get bookings with search and filter
-function getBookings($search = '', $status_filter = '', $date_from = '', $date_to = '', $sort_by = 'booking_date', $sort_order = 'DESC') {
+function getBookings($search = '', $status_filter = '', $date_from = '', $date_to = '', $sort_by = 'check_in_date', $sort_order = 'DESC') {
     try {
         $pdo = getDBConnection();
         
@@ -119,7 +128,7 @@ function getBookings($search = '', $status_filter = '', $date_from = '', $date_t
         $params = [];
         
         if (!empty($search)) {
-            $where_conditions[] = "(b.booking_number LIKE ? OR b.service_type LIKE ? OR c.first_name LIKE ? OR c.last_name LIKE ? OR c.email LIKE ?)";
+            $where_conditions[] = "(b.booking_number LIKE ? OR b.room_type LIKE ? OR c.first_name LIKE ? OR c.last_name LIKE ? OR c.email LIKE ?)";
             $search_param = "%$search%";
             $params = array_merge($params, [$search_param, $search_param, $search_param, $search_param, $search_param]);
         }
@@ -130,16 +139,20 @@ function getBookings($search = '', $status_filter = '', $date_from = '', $date_t
         }
         
         if (!empty($date_from)) {
-            $where_conditions[] = "b.booking_date >= ?";
+            $where_conditions[] = "b.check_in_date >= ?";
             $params[] = $date_from;
         }
         
         if (!empty($date_to)) {
-            $where_conditions[] = "b.booking_date <= ?";
+            $where_conditions[] = "b.check_out_date <= ?";
             $params[] = $date_to;
         }
         
         $where_clause = !empty($where_conditions) ? 'WHERE ' . implode(' AND ', $where_conditions) : '';
+        
+        $allowed_sort = ['check_in_date', 'check_out_date', 'total_amount', 'status'];
+        $sort_by = in_array($sort_by, $allowed_sort) ? $sort_by : 'check_in_date';
+        $sort_order = strtoupper($sort_order) === 'ASC' ? 'ASC' : 'DESC';
         
         $sql = "SELECT b.*, c.first_name, c.last_name, c.email, c.phone 
                 FROM bookings b 
@@ -180,17 +193,25 @@ function getBookingStats() {
         $stmt = $pdo->query("SELECT COUNT(*) FROM bookings");
         $stats['total_bookings'] = $stmt->fetchColumn();
         
-        // Today's bookings
-        $stmt = $pdo->query("SELECT COUNT(*) FROM bookings WHERE booking_date = CURDATE()");
-        $stats['today_bookings'] = $stmt->fetchColumn();
+        // Today's check-ins
+        $stmt = $pdo->query("SELECT COUNT(*) FROM bookings WHERE check_in_date = CURDATE()");
+        $stats['today_checkins'] = $stmt->fetchColumn();
+        
+        // Today's check-outs
+        $stmt = $pdo->query("SELECT COUNT(*) FROM bookings WHERE check_out_date = CURDATE()");
+        $stats['today_checkouts'] = $stmt->fetchColumn();
         
         // Pending bookings
         $stmt = $pdo->query("SELECT COUNT(*) FROM bookings WHERE status = 'pending'");
         $stats['pending_bookings'] = $stmt->fetchColumn();
         
-        // Completed bookings
-        $stmt = $pdo->query("SELECT COUNT(*) FROM bookings WHERE status = 'completed'");
-        $stats['completed_bookings'] = $stmt->fetchColumn();
+        // Confirmed bookings
+        $stmt = $pdo->query("SELECT COUNT(*) FROM bookings WHERE status = 'confirmed'");
+        $stats['confirmed_bookings'] = $stmt->fetchColumn();
+        
+        // Checked-in bookings
+        $stmt = $pdo->query("SELECT COUNT(*) FROM bookings WHERE status = 'checked_in'");
+        $stats['checked_in_bookings'] = $stmt->fetchColumn();
         
         // Total revenue
         $stmt = $pdo->query("SELECT COALESCE(SUM(total_amount), 0) FROM bookings WHERE payment_status = 'paid'");
@@ -201,24 +222,36 @@ function getBookingStats() {
         $stats['avg_booking_value'] = $stmt->fetchColumn();
         
         // This month's bookings
-        $stmt = $pdo->query("SELECT COUNT(*) FROM bookings WHERE MONTH(booking_date) = MONTH(CURDATE()) AND YEAR(booking_date) = YEAR(CURDATE())");
+        $stmt = $pdo->query("SELECT COUNT(*) FROM bookings WHERE MONTH(check_in_date) = MONTH(CURDATE()) AND YEAR(check_in_date) = YEAR(CURDATE())");
         $stats['month_bookings'] = $stmt->fetchColumn();
         
         // This month's revenue
-        $stmt = $pdo->query("SELECT COALESCE(SUM(total_amount), 0) FROM bookings WHERE MONTH(booking_date) = MONTH(CURDATE()) AND YEAR(booking_date) = YEAR(CURDATE()) AND payment_status = 'paid'");
+        $stmt = $pdo->query("SELECT COALESCE(SUM(total_amount), 0) FROM bookings WHERE MONTH(check_in_date) = MONTH(CURDATE()) AND YEAR(check_in_date) = YEAR(CURDATE()) AND payment_status = 'paid'");
         $stats['month_revenue'] = $stmt->fetchColumn();
+        
+        // Average stay duration
+        $stmt = $pdo->query("SELECT COALESCE(AVG(DATEDIFF(check_out_date, check_in_date)), 0) FROM bookings WHERE status IN ('checked_out', 'confirmed')");
+        $stats['avg_stay_duration'] = $stmt->fetchColumn();
+        
+        // Total guests
+        $stmt = $pdo->query("SELECT COALESCE(SUM(num_guests), 0) FROM bookings WHERE status IN ('checked_in', 'confirmed')");
+        $stats['total_guests'] = $stmt->fetchColumn();
         
         return $stats;
     } catch(PDOException $e) {
         return [
             'total_bookings' => 0,
-            'today_bookings' => 0,
+            'today_checkins' => 0,
+            'today_checkouts' => 0,
             'pending_bookings' => 0,
-            'completed_bookings' => 0,
+            'confirmed_bookings' => 0,
+            'checked_in_bookings' => 0,
             'total_revenue' => 0,
             'avg_booking_value' => 0,
             'month_bookings' => 0,
-            'month_revenue' => 0
+            'month_revenue' => 0,
+            'avg_stay_duration' => 0,
+            'total_guests' => 0
         ];
     }
 }
@@ -231,12 +264,12 @@ function getChartData() {
         $pdo = getDBConnection();
         
         // Bookings by month (last 6 months)
-        $sql = "SELECT DATE_FORMAT(booking_date, '%Y-%m') as month, 
+        $sql = "SELECT DATE_FORMAT(check_in_date, '%Y-%m') as month, 
                        COUNT(*) as count, 
                        SUM(total_amount) as revenue 
                 FROM bookings 
-                WHERE booking_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) 
-                GROUP BY DATE_FORMAT(booking_date, '%Y-%m') 
+                WHERE check_in_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) 
+                GROUP BY DATE_FORMAT(check_in_date, '%Y-%m') 
                 ORDER BY month";
         $stmt = $pdo->query($sql);
         $monthly_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -248,14 +281,14 @@ function getChartData() {
         $stmt = $pdo->query($sql);
         $status_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Top services
-        $sql = "SELECT service_type, COUNT(*) as count, SUM(total_amount) as revenue 
+        // Top room types
+        $sql = "SELECT room_type, COUNT(*) as count, SUM(total_amount) as revenue 
                 FROM bookings 
-                GROUP BY service_type 
+                GROUP BY room_type 
                 ORDER BY revenue DESC 
                 LIMIT 5";
         $stmt = $pdo->query($sql);
-        $top_services = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $top_room_types = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         // Payment methods
         $sql = "SELECT payment_method, COUNT(*) as count, SUM(total_amount) as revenue 
@@ -265,29 +298,41 @@ function getChartData() {
         $stmt = $pdo->query($sql);
         $payment_methods = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Daily bookings (last 30 days)
-        $sql = "SELECT DATE(booking_date) as date, COUNT(*) as count 
+        // Daily occupancy (last 30 days)
+        $sql = "SELECT DATE(check_in_date) as date, COUNT(*) as count 
                 FROM bookings 
-                WHERE booking_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) 
-                GROUP BY DATE(booking_date) 
+                WHERE check_in_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) 
+                GROUP BY DATE(check_in_date) 
                 ORDER BY date";
         $stmt = $pdo->query($sql);
         $daily_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
+        // Guest count trends
+        $sql = "SELECT DATE_FORMAT(check_in_date, '%Y-%m') as month, 
+                       SUM(num_guests) as total_guests 
+                FROM bookings 
+                WHERE check_in_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) 
+                GROUP BY DATE_FORMAT(check_in_date, '%Y-%m') 
+                ORDER BY month";
+        $stmt = $pdo->query($sql);
+        $guest_trends = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
         return [
             'monthly_data' => $monthly_data,
             'status_data' => $status_data,
-            'top_services' => $top_services,
+            'top_room_types' => $top_room_types,
             'payment_methods' => $payment_methods,
-            'daily_data' => $daily_data
+            'daily_data' => $daily_data,
+            'guest_trends' => $guest_trends
         ];
     } catch(PDOException $e) {
         return [
             'monthly_data' => [],
             'status_data' => [],
-            'top_services' => [],
+            'top_room_types' => [],
             'payment_methods' => [],
-            'daily_data' => []
+            'daily_data' => [],
+            'guest_trends' => []
         ];
     }
 }
@@ -386,7 +431,7 @@ $chartData = getChartData();
                         </a>
                         <a class="nav-link active" href="bookings.php">
                             <i class="fas fa-calendar-check me-2"></i>
-                            Bookings & Analytics
+                            Bookings
                         </a>
                         <?php if (isSuperAdmin()): ?>
                         <a class="nav-link" href="manage_admins.php">
@@ -412,7 +457,7 @@ $chartData = getChartData();
                 <!-- Top Navbar -->
                 <nav class="navbar navbar-expand-lg">
                     <div class="container-fluid">
-                        <h4 class="mb-0">Booking Management & Analytics</h4>
+                        <h4 class="mb-0">Hotel Booking Management & Analytics</h4>
                         <div class="navbar-nav ms-auto">
                             <div class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
@@ -461,9 +506,9 @@ $chartData = getChartData();
                         <div class="col-md-3 mb-3">
                             <div class="card stat-card success">
                                 <div class="card-body text-center">
-                                    <i class="fas fa-clock fa-2x mb-2"></i>
-                                    <h3><?php echo $stats['today_bookings']; ?></h3>
-                                    <p class="mb-0">Today's Bookings</p>
+                                    <i class="fas fa-sign-in-alt fa-2x mb-2"></i>
+                                    <h3><?php echo $stats['today_checkins']; ?></h3>
+                                    <p class="mb-0">Today's Check-ins</p>
                                 </div>
                             </div>
                         </div>
@@ -493,35 +538,35 @@ $chartData = getChartData();
                             <div class="card stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                                 <div class="card-body text-center">
                                     <i class="fas fa-check-circle fa-2x mb-2"></i>
-                                    <h3><?php echo $stats['completed_bookings']; ?></h3>
-                                    <p class="mb-0">Completed</p>
+                                    <h3><?php echo $stats['confirmed_bookings']; ?></h3>
+                                    <p class="mb-0">Confirmed</p>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-3 mb-3">
                             <div class="card stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
                                 <div class="card-body text-center">
-                                    <i class="fas fa-calendar-week fa-2x mb-2"></i>
-                                    <h3><?php echo $stats['month_bookings']; ?></h3>
-                                    <p class="mb-0">This Month</p>
+                                    <i class="fas fa-bed fa-2x mb-2"></i>
+                                    <h3><?php echo $stats['checked_in_bookings']; ?></h3>
+                                    <p class="mb-0">Checked In</p>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-3 mb-3">
                             <div class="card stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
                                 <div class="card-body text-center">
-                                    <i class="fas fa-dollar-sign fa-2x mb-2"></i>
-                                    <h3>$<?php echo number_format($stats['month_revenue'], 2); ?></h3>
-                                    <p class="mb-0">Month Revenue</p>
+                                    <i class="fas fa-users fa-2x mb-2"></i>
+                                    <h3><?php echo $stats['total_guests']; ?></h3>
+                                    <p class="mb-0">Total Guests</p>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-3 mb-3">
                             <div class="card stat-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
                                 <div class="card-body text-center">
-                                    <i class="fas fa-chart-line fa-2x mb-2"></i>
-                                    <h3>$<?php echo number_format($stats['avg_booking_value'], 2); ?></h3>
-                                    <p class="mb-0">Avg. Booking</p>
+                                    <i class="fas fa-calendar-day fa-2x mb-2"></i>
+                                    <h3><?php echo round($stats['avg_stay_duration'], 1); ?></h3>
+                                    <p class="mb-0">Avg. Stay (Days)</p>
                                 </div>
                             </div>
                         </div>
@@ -537,8 +582,8 @@ $chartData = getChartData();
                                     </button>
                                 </li>
                                 <li class="nav-item" role="presentation">
-                                    <button class="nav-link" id="services-tab" data-bs-toggle="tab" data-bs-target="#services" type="button" role="tab">
-                                        <i class="fas fa-list me-2"></i>Service Analytics
+                                    <button class="nav-link" id="rooms-tab" data-bs-toggle="tab" data-bs-target="#rooms" type="button" role="tab">
+                                        <i class="fas fa-bed me-2"></i>Room Analytics
                                     </button>
                                 </li>
                                 <li class="nav-item" role="presentation">
@@ -547,8 +592,8 @@ $chartData = getChartData();
                                     </button>
                                 </li>
                                 <li class="nav-item" role="presentation">
-                                    <button class="nav-link" id="daily-tab" data-bs-toggle="tab" data-bs-target="#daily" type="button" role="tab">
-                                        <i class="fas fa-calendar-day me-2"></i>Daily Activity
+                                    <button class="nav-link" id="occupancy-tab" data-bs-toggle="tab" data-bs-target="#occupancy" type="button" role="tab">
+                                        <i class="fas fa-calendar-day me-2"></i>Occupancy Trends
                                     </button>
                                 </li>
                             </ul>
@@ -562,8 +607,8 @@ $chartData = getChartData();
                                     </div>
                                 </div>
                                 
-                                <!-- Service Analytics Tab -->
-                                <div class="tab-pane fade" id="services" role="tabpanel">
+                                <!-- Room Analytics Tab -->
+                                <div class="tab-pane fade" id="rooms" role="tabpanel">
                                     <div class="row">
                                         <div class="col-md-6">
                                             <div class="chart-container">
@@ -585,10 +630,10 @@ $chartData = getChartData();
                                     </div>
                                 </div>
                                 
-                                <!-- Daily Activity Tab -->
-                                <div class="tab-pane fade" id="daily" role="tabpanel">
+                                <!-- Occupancy Trends Tab -->
+                                <div class="tab-pane fade" id="occupancy" role="tabpanel">
                                     <div class="chart-container">
-                                        <canvas id="dailyActivityChart"></canvas>
+                                        <canvas id="occupancyTrendsChart"></canvas>
                                     </div>
                                 </div>
                             </div>
@@ -628,7 +673,8 @@ $chartData = getChartData();
                                 <div class="col-md-2">
                                     <label for="sort" class="form-label">Sort By</label>
                                     <select class="form-select" id="sort" name="sort">
-                                        <option value="booking_date" <?php echo $sort_by === 'booking_date' ? 'selected' : ''; ?>>Date</option>
+                                        <option value="check_in_date" <?php echo $sort_by === 'check_in_date' ? 'selected' : ''; ?>>Check-in Date</option>
+                                        <option value="check_out_date" <?php echo $sort_by === 'check_out_date' ? 'selected' : ''; ?>>Check-out Date</option>
                                         <option value="total_amount" <?php echo $sort_by === 'total_amount' ? 'selected' : ''; ?>>Amount</option>
                                         <option value="status" <?php echo $sort_by === 'status' ? 'selected' : ''; ?>>Status</option>
                                     </select>
@@ -674,8 +720,9 @@ $chartData = getChartData();
                                         <tr>
                                             <th>Booking #</th>
                                             <th>Customer</th>
-                                            <th>Service</th>
-                                            <th>Date & Time</th>
+                                            <th>Room Type</th>
+                                            <th>Check-in/Check-out</th>
+                                            <th>Guests</th>
                                             <th>Amount</th>
                                             <th>Status</th>
                                             <th>Payment</th>
@@ -685,9 +732,9 @@ $chartData = getChartData();
                                     <tbody>
                                         <?php if (empty($bookings)): ?>
                                         <tr>
-                                            <td colspan="8" class="text-center text-muted py-4">
+                                            <td colspan="9" class="text-center text-muted py-4">
                                                 <i class="fas fa-calendar fa-2x mb-3"></i>
-                                                <p>No bookings found</p>
+                                                <p>No hotel bookings found</p>
                                             </td>
                                         </tr>
                                         <?php else: ?>
@@ -703,22 +750,29 @@ $chartData = getChartData();
                                                         <small class="text-muted"><?php echo htmlspecialchars($booking['email']); ?></small>
                                                     </div>
                                                 </td>
-                                                <td><?php echo htmlspecialchars($booking['service_type']); ?></td>
+                                                <td><?php echo htmlspecialchars($booking['room_type']); ?></td>
                                                 <td>
                                                     <div>
-                                                        <strong><?php echo date('M j, Y', strtotime($booking['booking_date'])); ?></strong>
+                                                        <strong>In: <?php echo date('M j, Y', strtotime($booking['check_in_date'])); ?></strong>
                                                         <br>
-                                                        <small class="text-muted"><?php echo date('g:i A', strtotime($booking['booking_time'])); ?></small>
+                                                        <small class="text-muted">Out: <?php echo date('M j, Y', strtotime($booking['check_out_date'])); ?></small>
                                                     </div>
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-info"><?php echo $booking['num_guests']; ?> Guest<?php echo $booking['num_guests'] > 1 ? 's' : ''; ?></span>
+                                                    <?php if ($booking['num_rooms'] > 1): ?>
+                                                    <br><small class="text-muted"><?php echo $booking['num_rooms']; ?> Room<?php echo $booking['num_rooms'] > 1 ? 's' : ''; ?></small>
+                                                    <?php endif; ?>
                                                 </td>
                                                 <td>$<?php echo number_format($booking['total_amount'], 2); ?></td>
                                                 <td>
                                                     <span class="badge bg-<?php 
-                                                        echo $booking['status'] === 'completed' ? 'success' : 
-                                                            ($booking['status'] === 'confirmed' ? 'primary' : 
-                                                            ($booking['status'] === 'pending' ? 'warning' : 'danger')); 
+                                                        echo $booking['status'] === 'checked_out' ? 'success' : 
+                                                            ($booking['status'] === 'checked_in' ? 'primary' : 
+                                                            ($booking['status'] === 'confirmed' ? 'info' : 
+                                                            ($booking['status'] === 'pending' ? 'warning' : 'danger'))); 
                                                     ?>">
-                                                        <?php echo ucfirst($booking['status']); ?>
+                                                        <?php echo ucfirst(str_replace('_', ' ', $booking['status'])); ?>
                                                     </span>
                                                 </td>
                                                 <td>
@@ -769,10 +823,18 @@ $chartData = getChartData();
                             <select class="form-select" id="status_<?php echo $booking['id']; ?>" name="status">
                                 <option value="pending" <?php echo $booking['status'] === 'pending' ? 'selected' : ''; ?>>Pending</option>
                                 <option value="confirmed" <?php echo $booking['status'] === 'confirmed' ? 'selected' : ''; ?>>Confirmed</option>
-                                <option value="completed" <?php echo $booking['status'] === 'completed' ? 'selected' : ''; ?>>Completed</option>
+                                <option value="checked_in" <?php echo $booking['status'] === 'checked_in' ? 'selected' : ''; ?>>Checked In</option>
+                                <option value="checked_out" <?php echo $booking['status'] === 'checked_out' ? 'selected' : ''; ?>>Checked Out</option>
                                 <option value="cancelled" <?php echo $booking['status'] === 'cancelled' ? 'selected' : ''; ?>>Cancelled</option>
                                 <option value="no_show" <?php echo $booking['status'] === 'no_show' ? 'selected' : ''; ?>>No Show</option>
                             </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="room_number_<?php echo $booking['id']; ?>" class="form-label">Room Number</label>
+                            <input type="text" class="form-control" id="room_number_<?php echo $booking['id']; ?>" name="room_number" 
+                                   value="<?php echo htmlspecialchars($booking['room_number'] ?? ''); ?>" 
+                                   placeholder="e.g., 101, 2A, etc.">
                         </div>
                         
                         <div class="mb-3">
@@ -787,7 +849,7 @@ $chartData = getChartData();
                         
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle me-2"></i>
-                            <strong>Note:</strong> When a booking is marked as "Completed" and "Paid", a sale record will be automatically created.
+                            <strong>Note:</strong> When a booking is marked as "Checked Out" and "Paid", a sale record will be automatically created.
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -860,10 +922,10 @@ $chartData = getChartData();
         const servicesChart = new Chart(servicesCtx, {
             type: 'bar',
             data: {
-                labels: <?php echo json_encode(array_column($chartData['top_services'], 'service_type')); ?>,
+                labels: <?php echo json_encode(array_column($chartData['top_room_types'], 'room_type')); ?>,
                 datasets: [{
                     label: 'Revenue ($)',
-                    data: <?php echo json_encode(array_column($chartData['top_services'], 'revenue')); ?>,
+                    data: <?php echo json_encode(array_column($chartData['top_room_types'], 'revenue')); ?>,
                     backgroundColor: [
                         '#667eea',
                         '#764ba2',
