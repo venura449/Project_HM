@@ -336,7 +336,7 @@ For technical support or feature requests:
 
 ## 📄 License
 
-This project is developed for educational and commercial use. Please ensure compliance with your local regulations and requirements.
+This project is developed by J.A Venura Jayasingha for BOOMERANG SOFTWARE ENGINEER RECRUITMENT PROCESS.
 
 ## 🚀 Future Enhancements
 
