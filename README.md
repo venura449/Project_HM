@@ -291,7 +291,7 @@ The system is fully responsive and works on:
 - Fast loading times
 - Easy-to-use forms
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -334,7 +334,7 @@ For technical support or feature requests:
 - Review the code comments
 - Test in a development environment first
 
-## 📄 License
+##  License
 
 This project is developed by J.A Venura Jayasingha for BOOMERANG SOFTWARE ENGINEER RECRUITMENT PROCESS.
 
@@ -352,4 +352,4 @@ Potential features for future versions:
 
 ---
 
-**Boomerang Project** - Making hotel management simple and efficient! 🏨✨ 
+**Boomerang Project** - Making hotel management simple and efficient! 
