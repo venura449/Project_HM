@@ -15,12 +15,12 @@
 - **Database Access**: PDO with prepared statements
 
 ##  d) Features Implemented
-1. ** Secure Authentication System** - Role-based access control with Super Admin and Admin roles
-2. ** Customer Management** - Add, edit, view customers with detailed profiles and booking history
-3. ** Hotel Booking Management** - Create bookings, track status (Pending→Confirmed→Checked In→Checked Out), manage payments
-4. ** Analytics Dashboard** - Real-time statistics, interactive charts, booking trends, revenue tracking
-5. ** Reporting System** - Generate booking reports, export functionality, customer analytics
-6. ** Responsive Design** - Fixed sidebar navigation, mobile-friendly interface, modern UI
+1.  ** Secure Authentication System** - Role-based access control with Super Admin and Admin roles
+2.  ** Customer Management** - Add, edit, view customers with detailed profiles and booking history
+3.  ** Hotel Booking Management** - Create bookings, track status (Pending→Confirmed→Checked In→Checked Out), manage payments
+4.  ** Analytics Dashboard** - Real-time statistics, interactive charts, booking trends, revenue tracking
+5.  ** Reporting System** - Generate booking reports, export functionality, customer analytics
+6.  ** Responsive Design** - Fixed sidebar navigation, mobile-friendly interface, modern UI
 
 ##  e) Instructions to Run the Project
 
