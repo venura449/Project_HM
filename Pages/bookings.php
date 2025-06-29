@@ -6,7 +6,7 @@ $currentAdmin = getCurrentAdmin();
 $error = '';
 $success = '';
 
-// Handle form submissions
+//Self submission handler using switch case
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     
@@ -63,44 +63,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Update booking status and room number
                     $stmt = $pdo->prepare("UPDATE bookings SET status = ?, payment_status = ?, room_number = ? WHERE id = ?");
                     $stmt->execute([$status, $payment_status, $room_number, $booking_id]);
-                    
-                    // If booking is checked out and paid, create a sale record
-                    if ($status === 'checked_out' && $payment_status === 'paid' && $booking) {
-                        // Check if sale already exists for this booking
-                        $stmt = $pdo->prepare("SELECT COUNT(*) FROM sales WHERE booking_id = ?");
-                        $stmt->execute([$booking_id]);
-                        
-                        if ($stmt->fetchColumn() == 0) {
-                            // Generate sale number
-                            $sale_number = 'SL' . date('Ymd') . str_pad(rand(1, 999), 3, '0', STR_PAD_LEFT);
-                            
-                            // Calculate number of nights
-                            $check_in = new DateTime($booking['check_in_date']);
-                            $check_out = new DateTime($booking['check_out_date']);
-                            $nights = $check_in->diff($check_out)->days;
-                            
-                            // Create sale record
-                            $stmt = $pdo->prepare("INSERT INTO sales (booking_id, customer_id, sale_number, product_name, quantity, unit_price, total_price, discount_amount, final_amount, payment_method, payment_status, sale_date, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                            $stmt->execute([
-                                $booking_id,
-                                $booking['customer_id'],
-                                $sale_number,
-                                $booking['room_type'] . ' - ' . $nights . ' night' . ($nights > 1 ? 's' : ''),
-                                1, // quantity
-                                $booking['total_amount'], // unit price
-                                $booking['total_amount'], // total price
-                                0.00, // discount
-                                $booking['total_amount'], // final amount
-                                $booking['payment_method'],
-                                'paid',
-                                date('Y-m-d'),
-                                $currentAdmin['id']
-                            ]);
-                            
-                            // Update customer totals
-                            updateCustomerTotals($pdo, $booking['customer_id']);
-                        }
-                    }
                     
                     $success = 'Hotel booking status updated successfully.';
                 } catch(PDOException $e) {
@@ -263,7 +225,7 @@ function getChartData() {
     try {
         $pdo = getDBConnection();
         
-        // Bookings by month (last 6 months)
+      
         $sql = "SELECT DATE_FORMAT(check_in_date, '%Y-%m') as month, 
                        COUNT(*) as count, 
                        SUM(total_amount) as revenue 
@@ -274,14 +236,14 @@ function getChartData() {
         $stmt = $pdo->query($sql);
         $monthly_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Bookings by status
+        
         $sql = "SELECT status, COUNT(*) as count, SUM(total_amount) as revenue 
                 FROM bookings 
                 GROUP BY status";
         $stmt = $pdo->query($sql);
         $status_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Top room types
+        //r type
         $sql = "SELECT room_type, COUNT(*) as count, SUM(total_amount) as revenue 
                 FROM bookings 
                 GROUP BY room_type 
@@ -290,7 +252,7 @@ function getChartData() {
         $stmt = $pdo->query($sql);
         $top_room_types = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Payment methods
+        // Pay
         $sql = "SELECT payment_method, COUNT(*) as count, SUM(total_amount) as revenue 
                 FROM bookings 
                 WHERE payment_method IS NOT NULL 
@@ -298,7 +260,7 @@ function getChartData() {
         $stmt = $pdo->query($sql);
         $payment_methods = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Daily occupancy (last 30 days)
+        // Daily oc
         $sql = "SELECT DATE(check_in_date) as date, COUNT(*) as count 
                 FROM bookings 
                 WHERE check_in_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY) 
@@ -307,7 +269,7 @@ function getChartData() {
         $stmt = $pdo->query($sql);
         $daily_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Guest count trends
+        // Guest count
         $sql = "SELECT DATE_FORMAT(check_in_date, '%Y-%m') as month, 
                        SUM(num_guests) as total_guests 
                 FROM bookings 
@@ -349,11 +311,20 @@ $chartData = getChartData();
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { background-color: #f8f9fa; }
+        body { 
+            background-color: #f8f9fa; 
+        }
         .sidebar {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
+            height: 100vh;
             color: white;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 250px;
+            overflow-y: auto;
+            z-index: 1000;
         }
         .sidebar .nav-link {
             color: rgba(255, 255, 255, 0.8);
@@ -366,7 +337,10 @@ $chartData = getChartData();
             color: white;
             background-color: rgba(255, 255, 255, 0.1);
         }
-        .main-content { padding: 20px; }
+        .main-content { 
+            padding: 20px; 
+            margin-left: 250px;
+        }
         .card {
             border: none;
             border-radius: 15px;
@@ -375,10 +349,19 @@ $chartData = getChartData();
         .navbar {
             background: white;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-left: 250px;
         }
-        .alert { border-radius: 10px; border: none; }
-        .table { border-radius: 10px; overflow: hidden; }
-        .btn-sm { border-radius: 8px; }
+        .alert { 
+            border-radius: 10px; 
+            border: none; 
+        }
+        .table { 
+            border-radius: 10px; 
+            overflow: hidden; 
+        }
+        .btn-sm { 
+            border-radius: 8px; 
+        }
         .stat-card {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -406,399 +389,416 @@ $chartData = getChartData();
             background-color: #667eea;
             color: white;
         }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+            }
+            .main-content {
+                margin-left: 0;
+            }
+            .navbar {
+                margin-left: 0;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <div class="col-md-3 col-lg-2 px-0">
-                <div class="sidebar p-3">
-                    <div class="text-center mb-4">
-                        <i class="fas fa-user-shield fa-2x mb-2"></i>
-                        <h5>Admin Panel</h5>
-                        <small>Boomerang Project</small>
+    <!-- Sidebar -->
+    <div class="sidebar p-3">
+        <div class="text-center mb-4">
+            <i class="fas fa-user-shield fa-2x mb-2"></i>
+            <h5>Admin Panel</h5>
+            <small>Boomerang Project</small>
+        </div>
+        
+        <nav class="nav flex-column">
+            <a class="nav-link" href="../dashboard.php">
+                <i class="fas fa-tachometer-alt me-2"></i>
+                Dashboard
+            </a>
+            <a class="nav-link" href="customers.php">
+                <i class="fas fa-users me-2"></i>
+                Customers
+            </a>
+            <a class="nav-link active" href="bookings.php">
+                <i class="fas fa-calendar-check me-2"></i>
+                Bookings
+            </a>
+            <?php if (isSuperAdmin()): ?>
+            <a class="nav-link" href="manage_admins.php">
+                <i class="fas fa-user-cog me-2"></i>
+                Manage Admins
+            </a>
+            <?php endif; ?>
+            <a class="nav-link" href="profile.php">
+                <i class="fas fa-user me-2"></i>
+                Profile
+            </a>
+            <?php if (isSuperAdmin()): ?>
+            <a class="nav-link" href="settings.php">
+                <i class="fas fa-cog me-2"></i>
+                Settings
+            </a>
+            <?php endif; ?>
+            <hr class="my-3">
+            <a class="nav-link" href="../logout.php">
+                <i class="fas fa-sign-out-alt me-2"></i>
+                Logout
+            </a>
+        </nav>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Top Navbar -->
+        <nav class="navbar navbar-expand-lg">
+            <div class="container-fluid">
+                <h4 class="mb-0">Hotel Booking Management & Analytics</h4>
+                <div class="navbar-nav ms-auto">
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addBookingModal">
+                        <i class="fas fa-plus me-2"></i>
+                        Add Booking
+                    </button>
+                    <div class="nav-item dropdown ms-2">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle me-1"></i>
+                            <?php echo htmlspecialchars($currentAdmin['full_name']); ?>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="profile.php">Profile</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="../logout.php">Logout</a></li>
+                        </ul>
                     </div>
-                    
-                    <nav class="nav flex-column">
-                        <a class="nav-link" href="../dashboard.php">
-                            <i class="fas fa-tachometer-alt me-2"></i>
-                            Dashboard
-                        </a>
-                        <a class="nav-link" href="customers.php">
-                            <i class="fas fa-users me-2"></i>
-                            Customers
-                        </a>
-                        <a class="nav-link active" href="bookings.php">
-                            <i class="fas fa-calendar-check me-2"></i>
-                            Bookings
-                        </a>
-                        <?php if (isSuperAdmin()): ?>
-                        <a class="nav-link" href="manage_admins.php">
-                            <i class="fas fa-user-cog me-2"></i>
-                            Manage Admins
-                        </a>
-                        <?php endif; ?>
-                        <a class="nav-link" href="profile.php">
-                            <i class="fas fa-user me-2"></i>
-                            Profile
-                        </a>
-                        <hr class="my-3">
-                        <a class="nav-link" href="../logout.php">
-                            <i class="fas fa-sign-out-alt me-2"></i>
-                            Logout
-                        </a>
-                    </nav>
                 </div>
             </div>
-            
-            <!-- Main Content -->
-            <div class="col-md-9 col-lg-10">
-                <!-- Top Navbar -->
-                <nav class="navbar navbar-expand-lg">
-                    <div class="container-fluid">
-                        <h4 class="mb-0">Hotel Booking Management & Analytics</h4>
-                        <div class="navbar-nav ms-auto">
-                            <div class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                                    <i class="fas fa-user-circle me-1"></i>
-                                    <?php echo htmlspecialchars($currentAdmin['full_name']); ?>
-                                </a>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="profile.php">Profile</a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="../logout.php">Logout</a></li>
-                                </ul>
+        </nav>
+        
+        <!-- Alerts -->
+        <?php if ($error): ?>
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <?php echo htmlspecialchars($error); ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        <?php endif; ?>
+        
+        <?php if ($success): ?>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle me-2"></i>
+                <?php echo htmlspecialchars($success); ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        <?php endif; ?>
+        
+        <!-- Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3 mb-3">
+                <div class="card stat-card">
+                    <div class="card-body text-center">
+                        <i class="fas fa-calendar fa-2x mb-2"></i>
+                        <h3><?php echo $stats['total_bookings']; ?></h3>
+                        <p class="mb-0">Total Bookings</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card stat-card success">
+                    <div class="card-body text-center">
+                        <i class="fas fa-sign-in-alt fa-2x mb-2"></i>
+                        <h3><?php echo $stats['today_checkins']; ?></h3>
+                        <p class="mb-0">Today's Check-ins</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card stat-card warning">
+                    <div class="card-body text-center">
+                        <i class="fas fa-hourglass-half fa-2x mb-2"></i>
+                        <h3><?php echo $stats['pending_bookings']; ?></h3>
+                        <p class="mb-0">Pending</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card stat-card info">
+                    <div class="card-body text-center">
+                        <i class="fas fa-dollar-sign fa-2x mb-2"></i>
+                        <h3>$<?php echo number_format($stats['total_revenue'], 2); ?></h3>
+                        <p class="mb-0">Total Revenue</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Additional Stats Row -->
+        <div class="row mb-4">
+            <div class="col-md-3 mb-3">
+                <div class="card stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <div class="card-body text-center">
+                        <i class="fas fa-check-circle fa-2x mb-2"></i>
+                        <h3><?php echo $stats['confirmed_bookings']; ?></h3>
+                        <p class="mb-0">Confirmed</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                    <div class="card-body text-center">
+                        <i class="fas fa-bed fa-2x mb-2"></i>
+                        <h3><?php echo $stats['checked_in_bookings']; ?></h3>
+                        <p class="mb-0">Checked In</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                    <div class="card-body text-center">
+                        <i class="fas fa-users fa-2x mb-2"></i>
+                        <h3><?php echo $stats['total_guests']; ?></h3>
+                        <p class="mb-0">Total Guests</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card stat-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                    <div class="card-body text-center">
+                        <i class="fas fa-calendar-day fa-2x mb-2"></i>
+                        <h3><?php echo round($stats['avg_stay_duration'], 1); ?></h3>
+                        <p class="mb-0">Avg. Stay (Days)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Analytics Tabs -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <ul class="nav nav-tabs card-header-tabs" id="analyticsTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="trends-tab" data-bs-toggle="tab" data-bs-target="#trends" type="button" role="tab">
+                            <i class="fas fa-chart-line me-2"></i>Booking Trends
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="rooms-tab" data-bs-toggle="tab" data-bs-target="#rooms" type="button" role="tab">
+                            <i class="fas fa-bed me-2"></i>Room Analytics
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="status-tab" data-bs-toggle="tab" data-bs-target="#status" type="button" role="tab">
+                            <i class="fas fa-tasks me-2"></i>Status Distribution
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="occupancy-tab" data-bs-toggle="tab" data-bs-target="#occupancy" type="button" role="tab">
+                            <i class="fas fa-calendar-day me-2"></i>Occupancy Trends
+                        </button>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content" id="analyticsTabContent">
+                    <!-- Booking Trends Tab -->
+                    <div class="tab-pane fade show active" id="trends" role="tabpanel">
+                        <div class="chart-container">
+                            <canvas id="bookingTrendsChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Room Analytics Tab -->
+                    <div class="tab-pane fade" id="rooms" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="chart-container">
+                                    <canvas id="topServicesChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="chart-container">
+                                    <canvas id="paymentMethodsChart"></canvas>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </nav>
-                
-                <div class="main-content">
-                    <!-- Alerts -->
-                    <?php if ($error): ?>
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            <?php echo htmlspecialchars($error); ?>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    <?php endif; ?>
                     
-                    <?php if ($success): ?>
-                        <div class="alert alert-success alert-dismissible fade show" role="alert">
-                            <i class="fas fa-check-circle me-2"></i>
-                            <?php echo htmlspecialchars($success); ?>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    <?php endif; ?>
-                    
-                    <!-- Statistics Cards -->
-                    <div class="row mb-4">
-                        <div class="col-md-3 mb-3">
-                            <div class="card stat-card">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-calendar fa-2x mb-2"></i>
-                                    <h3><?php echo $stats['total_bookings']; ?></h3>
-                                    <p class="mb-0">Total Bookings</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <div class="card stat-card success">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-sign-in-alt fa-2x mb-2"></i>
-                                    <h3><?php echo $stats['today_checkins']; ?></h3>
-                                    <p class="mb-0">Today's Check-ins</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <div class="card stat-card warning">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-hourglass-half fa-2x mb-2"></i>
-                                    <h3><?php echo $stats['pending_bookings']; ?></h3>
-                                    <p class="mb-0">Pending</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <div class="card stat-card info">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-dollar-sign fa-2x mb-2"></i>
-                                    <h3>$<?php echo number_format($stats['total_revenue'], 2); ?></h3>
-                                    <p class="mb-0">Total Revenue</p>
-                                </div>
-                            </div>
+                    <!-- Status Distribution Tab -->
+                    <div class="tab-pane fade" id="status" role="tabpanel">
+                        <div class="chart-container">
+                            <canvas id="statusDistributionChart"></canvas>
                         </div>
                     </div>
                     
-                    <!-- Additional Stats Row -->
-                    <div class="row mb-4">
-                        <div class="col-md-3 mb-3">
-                            <div class="card stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-check-circle fa-2x mb-2"></i>
-                                    <h3><?php echo $stats['confirmed_bookings']; ?></h3>
-                                    <p class="mb-0">Confirmed</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <div class="card stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-bed fa-2x mb-2"></i>
-                                    <h3><?php echo $stats['checked_in_bookings']; ?></h3>
-                                    <p class="mb-0">Checked In</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <div class="card stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-users fa-2x mb-2"></i>
-                                    <h3><?php echo $stats['total_guests']; ?></h3>
-                                    <p class="mb-0">Total Guests</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-3 mb-3">
-                            <div class="card stat-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-calendar-day fa-2x mb-2"></i>
-                                    <h3><?php echo round($stats['avg_stay_duration'], 1); ?></h3>
-                                    <p class="mb-0">Avg. Stay (Days)</p>
-                                </div>
-                            </div>
+                    <!-- Occupancy Trends Tab -->
+                    <div class="tab-pane fade" id="occupancy" role="tabpanel">
+                        <div class="chart-container">
+                            <canvas id="occupancyTrendsChart"></canvas>
                         </div>
                     </div>
-                    
-                    <!-- Analytics Tabs -->
-                    <div class="card mb-4">
-                        <div class="card-header">
-                            <ul class="nav nav-tabs card-header-tabs" id="analyticsTabs" role="tablist">
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link active" id="trends-tab" data-bs-toggle="tab" data-bs-target="#trends" type="button" role="tab">
-                                        <i class="fas fa-chart-line me-2"></i>Booking Trends
-                                    </button>
-                                </li>
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link" id="rooms-tab" data-bs-toggle="tab" data-bs-target="#rooms" type="button" role="tab">
-                                        <i class="fas fa-bed me-2"></i>Room Analytics
-                                    </button>
-                                </li>
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link" id="status-tab" data-bs-toggle="tab" data-bs-target="#status" type="button" role="tab">
-                                        <i class="fas fa-tasks me-2"></i>Status Distribution
-                                    </button>
-                                </li>
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link" id="occupancy-tab" data-bs-toggle="tab" data-bs-target="#occupancy" type="button" role="tab">
-                                        <i class="fas fa-calendar-day me-2"></i>Occupancy Trends
-                                    </button>
-                                </li>
-                            </ul>
-                        </div>
-                        <div class="card-body">
-                            <div class="tab-content" id="analyticsTabContent">
-                                <!-- Booking Trends Tab -->
-                                <div class="tab-pane fade show active" id="trends" role="tabpanel">
-                                    <div class="chart-container">
-                                        <canvas id="bookingTrendsChart"></canvas>
-                                    </div>
-                                </div>
-                                
-                                <!-- Room Analytics Tab -->
-                                <div class="tab-pane fade" id="rooms" role="tabpanel">
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <div class="chart-container">
-                                                <canvas id="topServicesChart"></canvas>
-                                            </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Search and Filters -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="GET" action="" class="row g-3">
+                    <div class="col-md-3">
+                        <label for="search" class="form-label">Search</label>
+                        <input type="text" class="form-control" id="search" name="search" 
+                               value="<?php echo htmlspecialchars($search); ?>" 
+                               placeholder="Booking #, service, customer">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="status" class="form-label">Status</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="">All Status</option>
+                            <option value="pending" <?php echo $status_filter === 'pending' ? 'selected' : ''; ?>>Pending</option>
+                            <option value="confirmed" <?php echo $status_filter === 'confirmed' ? 'selected' : ''; ?>>Confirmed</option>
+                            <option value="completed" <?php echo $status_filter === 'completed' ? 'selected' : ''; ?>>Completed</option>
+                            <option value="cancelled" <?php echo $status_filter === 'cancelled' ? 'selected' : ''; ?>>Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="date_from" class="form-label">From Date</label>
+                        <input type="date" class="form-control" id="date_from" name="date_from" 
+                               value="<?php echo htmlspecialchars($date_from); ?>">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="date_to" class="form-label">To Date</label>
+                        <input type="date" class="form-control" id="date_to" name="date_to" 
+                               value="<?php echo htmlspecialchars($date_to); ?>">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="sort" class="form-label">Sort By</label>
+                        <select class="form-select" id="sort" name="sort">
+                            <option value="check_in_date" <?php echo $sort_by === 'check_in_date' ? 'selected' : ''; ?>>Check-in Date</option>
+                            <option value="check_out_date" <?php echo $sort_by === 'check_out_date' ? 'selected' : ''; ?>>Check-out Date</option>
+                            <option value="total_amount" <?php echo $sort_by === 'total_amount' ? 'selected' : ''; ?>>Amount</option>
+                            <option value="status" <?php echo $sort_by === 'status' ? 'selected' : ''; ?>>Status</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1">
+                        <label for="order" class="form-label">Order</label>
+                        <select class="form-select" id="order" name="order">
+                            <option value="DESC" <?php echo $sort_order === 'DESC' ? 'selected' : ''; ?>>↓</option>
+                            <option value="ASC" <?php echo $sort_order === 'ASC' ? 'selected' : ''; ?>>↑</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search me-2"></i>
+                            Search
+                        </button>
+                        <a href="bookings.php" class="btn btn-secondary">
+                            <i class="fas fa-times me-2"></i>
+                            Clear
+                        </a>
+                        <a href="generate_booking_report.php?<?php echo http_build_query($_GET); ?>" 
+                           class="btn btn-success" target="_blank">
+                            <i class="fas fa-file-pdf me-2"></i>
+                            Generate Report
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Bookings List -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-calendar-check me-2"></i>
+                    Bookings (<?php echo count($bookings); ?>)
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Booking #</th>
+                                <th>Customer</th>
+                                <th>Room Type</th>
+                                <th>Check-in/Check-out</th>
+                                <th>Guests</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Payment</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($bookings)): ?>
+                            <tr>
+                                <td colspan="9" class="text-center text-muted py-4">
+                                    <i class="fas fa-calendar fa-2x mb-3"></i>
+                                    <p>No hotel bookings found</p>
+                                </td>
+                            </tr>
+                            <?php else: ?>
+                                <?php foreach ($bookings as $booking): ?>
+                                <tr>
+                                    <td>
+                                        <strong><?php echo htmlspecialchars($booking['booking_number']); ?></strong>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <strong><?php echo htmlspecialchars($booking['first_name'] . ' ' . $booking['last_name']); ?></strong>
+                                            <br>
+                                            <small class="text-muted"><?php echo htmlspecialchars($booking['email']); ?></small>
                                         </div>
-                                        <div class="col-md-6">
-                                            <div class="chart-container">
-                                                <canvas id="paymentMethodsChart"></canvas>
-                                            </div>
+                                    </td>
+                                    <td><?php echo htmlspecialchars($booking['room_type']); ?></td>
+                                    <td>
+                                        <div>
+                                            <strong>In: <?php echo date('M j, Y', strtotime($booking['check_in_date'])); ?></strong>
+                                            <br>
+                                            <small class="text-muted">Out: <?php echo date('M j, Y', strtotime($booking['check_out_date'])); ?></small>
                                         </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Status Distribution Tab -->
-                                <div class="tab-pane fade" id="status" role="tabpanel">
-                                    <div class="chart-container">
-                                        <canvas id="statusDistributionChart"></canvas>
-                                    </div>
-                                </div>
-                                
-                                <!-- Occupancy Trends Tab -->
-                                <div class="tab-pane fade" id="occupancy" role="tabpanel">
-                                    <div class="chart-container">
-                                        <canvas id="occupancyTrendsChart"></canvas>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Search and Filters -->
-                    <div class="card mb-4">
-                        <div class="card-body">
-                            <form method="GET" action="" class="row g-3">
-                                <div class="col-md-3">
-                                    <label for="search" class="form-label">Search</label>
-                                    <input type="text" class="form-control" id="search" name="search" 
-                                           value="<?php echo htmlspecialchars($search); ?>" 
-                                           placeholder="Booking #, service, customer">
-                                </div>
-                                <div class="col-md-2">
-                                    <label for="status" class="form-label">Status</label>
-                                    <select class="form-select" id="status" name="status">
-                                        <option value="">All Status</option>
-                                        <option value="pending" <?php echo $status_filter === 'pending' ? 'selected' : ''; ?>>Pending</option>
-                                        <option value="confirmed" <?php echo $status_filter === 'confirmed' ? 'selected' : ''; ?>>Confirmed</option>
-                                        <option value="completed" <?php echo $status_filter === 'completed' ? 'selected' : ''; ?>>Completed</option>
-                                        <option value="cancelled" <?php echo $status_filter === 'cancelled' ? 'selected' : ''; ?>>Cancelled</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-2">
-                                    <label for="date_from" class="form-label">From Date</label>
-                                    <input type="date" class="form-control" id="date_from" name="date_from" 
-                                           value="<?php echo htmlspecialchars($date_from); ?>">
-                                </div>
-                                <div class="col-md-2">
-                                    <label for="date_to" class="form-label">To Date</label>
-                                    <input type="date" class="form-control" id="date_to" name="date_to" 
-                                           value="<?php echo htmlspecialchars($date_to); ?>">
-                                </div>
-                                <div class="col-md-2">
-                                    <label for="sort" class="form-label">Sort By</label>
-                                    <select class="form-select" id="sort" name="sort">
-                                        <option value="check_in_date" <?php echo $sort_by === 'check_in_date' ? 'selected' : ''; ?>>Check-in Date</option>
-                                        <option value="check_out_date" <?php echo $sort_by === 'check_out_date' ? 'selected' : ''; ?>>Check-out Date</option>
-                                        <option value="total_amount" <?php echo $sort_by === 'total_amount' ? 'selected' : ''; ?>>Amount</option>
-                                        <option value="status" <?php echo $sort_by === 'status' ? 'selected' : ''; ?>>Status</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-1">
-                                    <label for="order" class="form-label">Order</label>
-                                    <select class="form-select" id="order" name="order">
-                                        <option value="DESC" <?php echo $sort_order === 'DESC' ? 'selected' : ''; ?>>↓</option>
-                                        <option value="ASC" <?php echo $sort_order === 'ASC' ? 'selected' : ''; ?>>↑</option>
-                                    </select>
-                                </div>
-                                <div class="col-12">
-                                    <button type="submit" class="btn btn-primary">
-                                        <i class="fas fa-search me-2"></i>
-                                        Search
-                                    </button>
-                                    <a href="bookings.php" class="btn btn-secondary">
-                                        <i class="fas fa-times me-2"></i>
-                                        Clear
-                                    </a>
-                                    <a href="generate_booking_report.php?<?php echo http_build_query($_GET); ?>" 
-                                       class="btn btn-success" target="_blank">
-                                        <i class="fas fa-file-pdf me-2"></i>
-                                        Generate Report
-                                    </a>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                    
-                    <!-- Bookings List -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">
-                                <i class="fas fa-calendar-check me-2"></i>
-                                Bookings (<?php echo count($bookings); ?>)
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-hover">
-                                    <thead class="table-dark">
-                                        <tr>
-                                            <th>Booking #</th>
-                                            <th>Customer</th>
-                                            <th>Room Type</th>
-                                            <th>Check-in/Check-out</th>
-                                            <th>Guests</th>
-                                            <th>Amount</th>
-                                            <th>Status</th>
-                                            <th>Payment</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php if (empty($bookings)): ?>
-                                        <tr>
-                                            <td colspan="9" class="text-center text-muted py-4">
-                                                <i class="fas fa-calendar fa-2x mb-3"></i>
-                                                <p>No hotel bookings found</p>
-                                            </td>
-                                        </tr>
-                                        <?php else: ?>
-                                            <?php foreach ($bookings as $booking): ?>
-                                            <tr>
-                                                <td>
-                                                    <strong><?php echo htmlspecialchars($booking['booking_number']); ?></strong>
-                                                </td>
-                                                <td>
-                                                    <div>
-                                                        <strong><?php echo htmlspecialchars($booking['first_name'] . ' ' . $booking['last_name']); ?></strong>
-                                                        <br>
-                                                        <small class="text-muted"><?php echo htmlspecialchars($booking['email']); ?></small>
-                                                    </div>
-                                                </td>
-                                                <td><?php echo htmlspecialchars($booking['room_type']); ?></td>
-                                                <td>
-                                                    <div>
-                                                        <strong>In: <?php echo date('M j, Y', strtotime($booking['check_in_date'])); ?></strong>
-                                                        <br>
-                                                        <small class="text-muted">Out: <?php echo date('M j, Y', strtotime($booking['check_out_date'])); ?></small>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <span class="badge bg-info"><?php echo $booking['num_guests']; ?> Guest<?php echo $booking['num_guests'] > 1 ? 's' : ''; ?></span>
-                                                    <?php if ($booking['num_rooms'] > 1): ?>
-                                                    <br><small class="text-muted"><?php echo $booking['num_rooms']; ?> Room<?php echo $booking['num_rooms'] > 1 ? 's' : ''; ?></small>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td>$<?php echo number_format($booking['total_amount'], 2); ?></td>
-                                                <td>
-                                                    <span class="badge bg-<?php 
-                                                        echo $booking['status'] === 'checked_out' ? 'success' : 
-                                                            ($booking['status'] === 'checked_in' ? 'primary' : 
-                                                            ($booking['status'] === 'confirmed' ? 'info' : 
-                                                            ($booking['status'] === 'pending' ? 'warning' : 'danger'))); 
-                                                    ?>">
-                                                        <?php echo ucfirst(str_replace('_', ' ', $booking['status'])); ?>
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <span class="badge bg-<?php 
-                                                        echo $booking['payment_status'] === 'paid' ? 'success' : 
-                                                            ($booking['payment_status'] === 'partial' ? 'warning' : 'secondary'); 
-                                                    ?>">
-                                                        <?php echo ucfirst($booking['payment_status']); ?>
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <div class="btn-group" role="group">
-                                                        <button type="button" class="btn btn-sm btn-outline-primary" 
-                                                                data-bs-toggle="modal" data-bs-target="#updateStatusModal<?php echo $booking['id']; ?>">
-                                                            <i class="fas fa-edit"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <?php endforeach; ?>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info"><?php echo $booking['num_guests']; ?> Guest<?php echo $booking['num_guests'] > 1 ? 's' : ''; ?></span>
+                                        <?php if ($booking['num_rooms'] > 1): ?>
+                                        <br><small class="text-muted"><?php echo $booking['num_rooms']; ?> Room<?php echo $booking['num_rooms'] > 1 ? 's' : ''; ?></small>
                                         <?php endif; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
+                                    </td>
+                                    <td>$<?php echo number_format($booking['total_amount'], 2); ?></td>
+                                    <td>
+                                        <span class="badge bg-<?php 
+                                            echo $booking['status'] === 'checked_out' ? 'success' : 
+                                                ($booking['status'] === 'checked_in' ? 'primary' : 
+                                                ($booking['status'] === 'confirmed' ? 'info' : 
+                                                ($booking['status'] === 'pending' ? 'warning' : 'danger'))); 
+                                        ?>">
+                                            <?php echo ucfirst(str_replace('_', ' ', $booking['status'])); ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-<?php 
+                                            echo $booking['payment_status'] === 'paid' ? 'success' : 
+                                                ($booking['payment_status'] === 'partial' ? 'warning' : 'secondary'); 
+                                        ?>">
+                                            <?php echo ucfirst($booking['payment_status']); ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                    data-bs-toggle="modal" data-bs-target="#updateStatusModal<?php echo $booking['id']; ?>">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

@@ -206,6 +206,75 @@ function getCustomerDetails($customer_id) {
         return null;
     }
 }
+
+// Get customer bookings
+function getCustomerBookings($customer_id) {
+    try {
+        $pdo = getDBConnection();
+        $stmt = $pdo->prepare("SELECT * FROM bookings WHERE customer_id = ? ORDER BY check_in_date DESC");
+        $stmt->execute([$customer_id]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch(PDOException $e) {
+        return [];
+    }
+}
+
+// Get customer statistics
+function getCustomerStats($customer_id) {
+    try {
+        $pdo = getDBConnection();
+        
+        $stats = [];
+        
+        // Total bookings
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM bookings WHERE customer_id = ?");
+        $stmt->execute([$customer_id]);
+        $stats['total_bookings'] = $stmt->fetchColumn();
+        
+        // Total spent
+        $stmt = $pdo->prepare("SELECT COALESCE(SUM(total_amount), 0) FROM bookings WHERE customer_id = ? AND payment_status = 'paid'");
+        $stmt->execute([$customer_id]);
+        $stats['total_spent'] = $stmt->fetchColumn();
+        
+        // Average booking value
+        $stmt = $pdo->prepare("SELECT COALESCE(AVG(total_amount), 0) FROM bookings WHERE customer_id = ? AND payment_status = 'paid'");
+        $stmt->execute([$customer_id]);
+        $stats['avg_booking_value'] = $stmt->fetchColumn();
+        
+        // First booking date
+        $stmt = $pdo->prepare("SELECT MIN(check_in_date) FROM bookings WHERE customer_id = ?");
+        $stmt->execute([$customer_id]);
+        $stats['first_booking'] = $stmt->fetchColumn();
+        
+        // Last booking date
+        $stmt = $pdo->prepare("SELECT MAX(check_in_date) FROM bookings WHERE customer_id = ?");
+        $stmt->execute([$customer_id]);
+        $stats['last_booking'] = $stmt->fetchColumn();
+        
+        // Most common room type
+        $stmt = $pdo->prepare("SELECT room_type, COUNT(*) as count FROM bookings WHERE customer_id = ? GROUP BY room_type ORDER BY count DESC LIMIT 1");
+        $stmt->execute([$customer_id]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        $stats['favorite_room_type'] = $result ? $result['room_type'] : 'N/A';
+        
+        // Booking status distribution
+        $stmt = $pdo->prepare("SELECT status, COUNT(*) as count FROM bookings WHERE customer_id = ? GROUP BY status");
+        $stmt->execute([$customer_id]);
+        $stats['status_distribution'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        return $stats;
+    } catch(PDOException $e) {
+        return [
+            'total_bookings' => 0,
+            'total_spent' => 0,
+            'avg_booking_value' => 0,
+            'first_booking' => null,
+            'last_booking' => null,
+            'favorite_room_type' => 'N/A',
+            'status_distribution' => []
+        ];
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -222,7 +291,14 @@ function getCustomerDetails($customer_id) {
         .sidebar {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
+            height: 100vh;
             color: white;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 250px;
+            overflow-y: auto;
+            z-index: 1000;
         }
         .sidebar .nav-link {
             color: rgba(255, 255, 255, 0.8);
@@ -237,6 +313,7 @@ function getCustomerDetails($customer_id) {
         }
         .main-content {
             padding: 20px;
+            margin-left: 250px;
         }
         .card {
             border: none;
@@ -246,6 +323,7 @@ function getCustomerDetails($customer_id) {
         .navbar {
             background: white;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-left: 250px;
         }
         .alert {
             border-radius: 10px;
@@ -273,280 +351,283 @@ function getCustomerDetails($customer_id) {
         .badge {
             border-radius: 8px;
         }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+            }
+            .main-content {
+                margin-left: 0;
+            }
+            .navbar {
+                margin-left: 0;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <div class="col-md-3 col-lg-2 px-0">
-                <div class="sidebar p-3">
-                    <div class="text-center mb-4">
-                        <i class="fas fa-user-shield fa-2x mb-2"></i>
-                        <h5>Admin Panel</h5>
-                        <small>Boomerang Project</small>
+    <!-- Sidebar -->
+    <div class="sidebar p-3">
+        <div class="text-center mb-4">
+            <i class="fas fa-user-shield fa-2x mb-2"></i>
+            <h5>Admin Panel</h5>
+            <small>Boomerang Project</small>
+        </div>
+        
+        <nav class="nav flex-column">
+            <a class="nav-link" href="../dashboard.php">
+                <i class="fas fa-tachometer-alt me-2"></i>
+                Dashboard
+            </a>
+            <a class="nav-link active" href="customers.php">
+                <i class="fas fa-users me-2"></i>
+                Customers
+            </a>
+            <a class="nav-link" href="bookings.php">
+                <i class="fas fa-calendar-check me-2"></i>
+                Bookings
+            </a>
+            <?php if (isSuperAdmin()): ?>
+            <a class="nav-link" href="manage_admins.php">
+                <i class="fas fa-user-cog me-2"></i>
+                Manage Admins
+            </a>
+            <?php endif; ?>
+            <a class="nav-link" href="profile.php">
+                <i class="fas fa-user me-2"></i>
+                Profile
+            </a>
+            <?php if (isSuperAdmin()): ?>
+            <a class="nav-link" href="settings.php">
+                <i class="fas fa-cog me-2"></i>
+                Settings
+            </a>
+            <?php endif; ?>
+            <hr class="my-3">
+            <a class="nav-link" href="../logout.php">
+                <i class="fas fa-sign-out-alt me-2"></i>
+                Logout
+            </a>
+        </nav>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Top Navbar -->
+        <nav class="navbar navbar-expand-lg">
+            <div class="container-fluid">
+                <h4 class="mb-0">Customer Management</h4>
+                <div class="navbar-nav ms-auto">
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
+                        <i class="fas fa-plus me-2"></i>
+                        Add Customer
+                    </button>
+                    <div class="nav-item dropdown ms-2">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle me-1"></i>
+                            <?php echo htmlspecialchars($currentAdmin['full_name']); ?>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="profile.php">Profile</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="../logout.php">Logout</a></li>
+                        </ul>
                     </div>
-                    
-                    <nav class="nav flex-column">
-                        <a class="nav-link" href="../dashboard.php">
-                            <i class="fas fa-tachometer-alt me-2"></i>
-                            Dashboard
-                        </a>
-                        <a class="nav-link active" href="customers.php">
-                            <i class="fas fa-users me-2"></i>
-                            Customers
-                        </a>
-                        <a class="nav-link" href="bookings.php">
-                            <i class="fas fa-calendar-check me-2"></i>
-                            Bookings
-                        </a>
-                        <a class="nav-link" href="sales.php">
-                            <i class="fas fa-chart-line me-2"></i>
-                            Sales
-                        </a>
-                        <?php if (isSuperAdmin()): ?>
-                        <a class="nav-link" href="manage_admins.php">
-                            <i class="fas fa-user-cog me-2"></i>
-                            Manage Admins
-                        </a>
-                        <?php endif; ?>
-                        <a class="nav-link" href="profile.php">
-                            <i class="fas fa-user me-2"></i>
-                            Profile
-                        </a>
-                        <?php if (isSuperAdmin()): ?>
-                        <a class="nav-link" href="settings.php">
-                            <i class="fas fa-cog me-2"></i>
-                            Settings
-                        </a>
-                        <?php endif; ?>
-                        <hr class="my-3">
-                        <a class="nav-link" href="../logout.php">
-                            <i class="fas fa-sign-out-alt me-2"></i>
-                            Logout
-                        </a>
-                    </nav>
                 </div>
             </div>
-            
-            <!-- Main Content -->
-            <div class="col-md-9 col-lg-10">
-                <!-- Top Navbar -->
-                <nav class="navbar navbar-expand-lg">
-                    <div class="container-fluid">
-                        <h4 class="mb-0">Customer Management</h4>
-                        <div class="navbar-nav ms-auto">
-                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
-                                <i class="fas fa-plus me-2"></i>
-                                Add Customer
-                            </button>
-                            <div class="nav-item dropdown ms-2">
-                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                                    <i class="fas fa-user-circle me-1"></i>
-                                    <?php echo htmlspecialchars($currentAdmin['full_name']); ?>
-                                </a>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="profile.php">Profile</a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="../logout.php">Logout</a></li>
-                                </ul>
-                            </div>
-                        </div>
+        </nav>
+        
+        <!-- Alerts -->
+        <?php if ($error): ?>
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <?php echo htmlspecialchars($error); ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        <?php endif; ?>
+        
+        <?php if ($success): ?>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle me-2"></i>
+                <?php echo htmlspecialchars($success); ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        <?php endif; ?>
+        
+        <!-- Search and Filters -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="GET" action="" class="row g-3">
+                    <div class="col-md-4">
+                        <label for="search" class="form-label">Search</label>
+                        <input type="text" class="form-control search-box" id="search" name="search" 
+                               value="<?php echo htmlspecialchars($search); ?>" 
+                               placeholder="Name, email, or phone">
                     </div>
-                </nav>
-                
-                <div class="main-content">
-                    <!-- Alerts -->
-                    <?php if ($error): ?>
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            <?php echo htmlspecialchars($error); ?>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    <?php endif; ?>
-                    
-                    <?php if ($success): ?>
-                        <div class="alert alert-success alert-dismissible fade show" role="alert">
-                            <i class="fas fa-check-circle me-2"></i>
-                            <?php echo htmlspecialchars($success); ?>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    <?php endif; ?>
-                    
-                    <!-- Search and Filters -->
-                    <div class="card mb-4">
-                        <div class="card-body">
-                            <form method="GET" action="" class="row g-3">
-                                <div class="col-md-4">
-                                    <label for="search" class="form-label">Search</label>
-                                    <input type="text" class="form-control search-box" id="search" name="search" 
-                                           value="<?php echo htmlspecialchars($search); ?>" 
-                                           placeholder="Name, email, or phone">
-                                </div>
-                                <div class="col-md-2">
-                                    <label for="status" class="form-label">Status</label>
-                                    <select class="form-select" id="status" name="status">
-                                        <option value="">All Status</option>
-                                        <option value="active" <?php echo $status_filter === 'active' ? 'selected' : ''; ?>>Active</option>
-                                        <option value="inactive" <?php echo $status_filter === 'inactive' ? 'selected' : ''; ?>>Inactive</option>
-                                        <option value="blocked" <?php echo $status_filter === 'blocked' ? 'selected' : ''; ?>>Blocked</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-2">
-                                    <label for="type" class="form-label">Type</label>
-                                    <select class="form-select" id="type" name="type">
-                                        <option value="">All Types</option>
-                                        <option value="individual" <?php echo $type_filter === 'individual' ? 'selected' : ''; ?>>Individual</option>
-                                        <option value="business" <?php echo $type_filter === 'business' ? 'selected' : ''; ?>>Business</option>
-                                        <option value="vip" <?php echo $type_filter === 'vip' ? 'selected' : ''; ?>>VIP</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-2">
-                                    <label for="sort" class="form-label">Sort By</label>
-                                    <select class="form-select" id="sort" name="sort">
-                                        <option value="created_at" <?php echo $sort_by === 'created_at' ? 'selected' : ''; ?>>Date Created</option>
-                                        <option value="first_name" <?php echo $sort_by === 'first_name' ? 'selected' : ''; ?>>First Name</option>
-                                        <option value="last_name" <?php echo $sort_by === 'last_name' ? 'selected' : ''; ?>>Last Name</option>
-                                        <option value="email" <?php echo $sort_by === 'email' ? 'selected' : ''; ?>>Email</option>
-                                        <option value="total_spent" <?php echo $sort_by === 'total_spent' ? 'selected' : ''; ?>>Total Spent</option>
-                                        <option value="total_bookings" <?php echo $sort_by === 'total_bookings' ? 'selected' : ''; ?>>Total Bookings</option>
-                                        <option value="status" <?php echo $sort_by === 'status' ? 'selected' : ''; ?>>Status</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-2">
-                                    <label for="order" class="form-label">Order</label>
-                                    <select class="form-select" id="order" name="order">
-                                        <option value="DESC" <?php echo $sort_order === 'DESC' ? 'selected' : ''; ?>>Descending</option>
-                                        <option value="ASC" <?php echo $sort_order === 'ASC' ? 'selected' : ''; ?>>Ascending</option>
-                                    </select>
-                                </div>
-                                <div class="col-12">
-                                    <button type="submit" class="btn btn-primary">
-                                        <i class="fas fa-search me-2"></i>
-                                        Search
-                                    </button>
-                                    <a href="customers.php" class="btn btn-secondary">
-                                        <i class="fas fa-times me-2"></i>
-                                        Clear
-                                    </a>
-                                </div>
-                            </form>
-                        </div>
+                    <div class="col-md-2">
+                        <label for="status" class="form-label">Status</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="">All Status</option>
+                            <option value="active" <?php echo $status_filter === 'active' ? 'selected' : ''; ?>>Active</option>
+                            <option value="inactive" <?php echo $status_filter === 'inactive' ? 'selected' : ''; ?>>Inactive</option>
+                            <option value="blocked" <?php echo $status_filter === 'blocked' ? 'selected' : ''; ?>>Blocked</option>
+                        </select>
                     </div>
-                    
-                    <!-- Customers List -->
-                    <div class="card">
-                        <div class="card-header d-flex justify-content-between align-items-center">
-                            <h5 class="card-title mb-0">
-                                <i class="fas fa-users me-2"></i>
-                                Customers (<?php echo $total_records; ?>)
-                            </h5>
-                            <div>
-                                <span class="text-muted">Page <?php echo $page; ?> of <?php echo $total_pages; ?></span>
-                            </div>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-hover">
-                                    <thead class="table-dark">
-                                        <tr>
-                                            <th>Name</th>
-                                            <th>Email</th>
-                                            <th>Phone</th>
-                                            <th>Type</th>
-                                            <th>Status</th>
-                                            <th>Total Spent</th>
-                                            <th>Bookings</th>
-                                            <th>Created</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php if (empty($customers)): ?>
-                                        <tr>
-                                            <td colspan="9" class="text-center text-muted py-4">
-                                                <i class="fas fa-users fa-2x mb-3"></i>
-                                                <p>No customers found</p>
-                                            </td>
-                                        </tr>
-                                        <?php else: ?>
-                                            <?php foreach ($customers as $customer): ?>
-                                            <tr>
-                                                <td>
-                                                    <strong><?php echo htmlspecialchars($customer['first_name'] . ' ' . $customer['last_name']); ?></strong>
-                                                    <?php if ($customer['customer_type'] === 'vip'): ?>
-                                                        <span class="badge bg-warning ms-1">VIP</span>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td><?php echo htmlspecialchars($customer['email']); ?></td>
-                                                <td><?php echo htmlspecialchars($customer['phone'] ?: '-'); ?></td>
-                                                <td>
-                                                    <span class="badge bg-<?php 
-                                                        echo $customer['customer_type'] === 'vip' ? 'warning' : 
-                                                            ($customer['customer_type'] === 'business' ? 'info' : 'secondary'); 
-                                                    ?>">
-                                                        <?php echo ucfirst($customer['customer_type']); ?>
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <span class="badge bg-<?php 
-                                                        echo $customer['status'] === 'active' ? 'success' : 
-                                                            ($customer['status'] === 'inactive' ? 'secondary' : 'danger'); 
-                                                    ?>">
-                                                        <?php echo ucfirst($customer['status']); ?>
-                                                    </span>
-                                                </td>
-                                                <td>$<?php echo number_format($customer['total_spent'], 2); ?></td>
-                                                <td>
-                                                    <span class="badge bg-primary"><?php echo $customer['total_bookings']; ?></span>
-                                                </td>
-                                                <td><?php echo date('M j, Y', strtotime($customer['created_at'])); ?></td>
-                                                <td>
-                                                    <div class="btn-group" role="group">
-                                                        <button type="button" class="btn btn-sm btn-outline-primary" 
-                                                                data-bs-toggle="modal" data-bs-target="#editCustomerModal<?php echo $customer['id']; ?>">
-                                                            <i class="fas fa-edit"></i>
-                                                        </button>
-                                                        <button type="button" class="btn btn-sm btn-outline-info" 
-                                                                onclick="viewCustomerDetails(<?php echo $customer['id']; ?>)">
-                                                            <i class="fas fa-eye"></i>
-                                                        </button>
-                                                        <button type="button" class="btn btn-sm btn-outline-danger" 
-                                                                data-bs-toggle="modal" data-bs-target="#deleteCustomerModal<?php echo $customer['id']; ?>">
-                                                            <i class="fas fa-trash"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <?php endforeach; ?>
-                                        <?php endif; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                            
-                            <!-- Pagination -->
-                            <?php if ($total_pages > 1): ?>
-                            <nav aria-label="Customer pagination">
-                                <ul class="pagination justify-content-center">
-                                    <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
-                                        <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page - 1])); ?>">Previous</a>
-                                    </li>
-                                    
-                                    <?php for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): ?>
-                                    <li class="page-item <?php echo $i === $page ? 'active' : ''; ?>">
-                                        <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $i])); ?>"><?php echo $i; ?></a>
-                                    </li>
-                                    <?php endfor; ?>
-                                    
-                                    <li class="page-item <?php echo $page >= $total_pages ? 'disabled' : ''; ?>">
-                                        <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page + 1])); ?>">Next</a>
-                                    </li>
-                                </ul>
-                            </nav>
-                            <?php endif; ?>
-                        </div>
+                    <div class="col-md-2">
+                        <label for="type" class="form-label">Type</label>
+                        <select class="form-select" id="type" name="type">
+                            <option value="">All Types</option>
+                            <option value="individual" <?php echo $type_filter === 'individual' ? 'selected' : ''; ?>>Individual</option>
+                            <option value="business" <?php echo $type_filter === 'business' ? 'selected' : ''; ?>>Business</option>
+                            <option value="vip" <?php echo $type_filter === 'vip' ? 'selected' : ''; ?>>VIP</option>
+                        </select>
                     </div>
+                    <div class="col-md-2">
+                        <label for="sort" class="form-label">Sort By</label>
+                        <select class="form-select" id="sort" name="sort">
+                            <option value="created_at" <?php echo $sort_by === 'created_at' ? 'selected' : ''; ?>>Date Created</option>
+                            <option value="first_name" <?php echo $sort_by === 'first_name' ? 'selected' : ''; ?>>First Name</option>
+                            <option value="last_name" <?php echo $sort_by === 'last_name' ? 'selected' : ''; ?>>Last Name</option>
+                            <option value="email" <?php echo $sort_by === 'email' ? 'selected' : ''; ?>>Email</option>
+                            <option value="total_spent" <?php echo $sort_by === 'total_spent' ? 'selected' : ''; ?>>Total Spent</option>
+                            <option value="total_bookings" <?php echo $sort_by === 'total_bookings' ? 'selected' : ''; ?>>Total Bookings</option>
+                            <option value="status" <?php echo $sort_by === 'status' ? 'selected' : ''; ?>>Status</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="order" class="form-label">Order</label>
+                        <select class="form-select" id="order" name="order">
+                            <option value="DESC" <?php echo $sort_order === 'DESC' ? 'selected' : ''; ?>>Descending</option>
+                            <option value="ASC" <?php echo $sort_order === 'ASC' ? 'selected' : ''; ?>>Ascending</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search me-2"></i>
+                            Search
+                        </button>
+                        <a href="customers.php" class="btn btn-secondary">
+                            <i class="fas fa-times me-2"></i>
+                            Clear
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Customers List -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-users me-2"></i>
+                    Customers (<?php echo $total_records; ?>)
+                </h5>
+                <div>
+                    <span class="text-muted">Page <?php echo $page; ?> of <?php echo $total_pages; ?></span>
                 </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                                <th>Total Spent</th>
+                                <th>Bookings</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($customers)): ?>
+                            <tr>
+                                <td colspan="9" class="text-center text-muted py-4">
+                                    <i class="fas fa-users fa-2x mb-3"></i>
+                                    <p>No customers found</p>
+                                </td>
+                            </tr>
+                            <?php else: ?>
+                                <?php foreach ($customers as $customer): ?>
+                                <tr>
+                                    <td>
+                                        <strong><?php echo htmlspecialchars($customer['first_name'] . ' ' . $customer['last_name']); ?></strong>
+                                        <?php if ($customer['customer_type'] === 'vip'): ?>
+                                            <span class="badge bg-warning ms-1">VIP</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><?php echo htmlspecialchars($customer['email']); ?></td>
+                                    <td><?php echo htmlspecialchars($customer['phone'] ?: '-'); ?></td>
+                                    <td>
+                                        <span class="badge bg-<?php 
+                                            echo $customer['customer_type'] === 'vip' ? 'warning' : 
+                                                ($customer['customer_type'] === 'business' ? 'info' : 'secondary'); 
+                                        ?>">
+                                            <?php echo ucfirst($customer['customer_type']); ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-<?php 
+                                            echo $customer['status'] === 'active' ? 'success' : 
+                                                ($customer['status'] === 'inactive' ? 'secondary' : 'danger'); 
+                                        ?>">
+                                            <?php echo ucfirst($customer['status']); ?>
+                                        </span>
+                                    </td>
+                                    <td>$<?php echo number_format($customer['total_spent'], 2); ?></td>
+                                    <td>
+                                        <span class="badge bg-primary"><?php echo $customer['total_bookings']; ?></span>
+                                    </td>
+                                    <td><?php echo date('M j, Y', strtotime($customer['created_at'])); ?></td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                    data-bs-toggle="modal" data-bs-target="#editCustomerModal<?php echo $customer['id']; ?>">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-info" 
+                                                    onclick="viewCustomerDetails(<?php echo $customer['id']; ?>)">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                    data-bs-toggle="modal" data-bs-target="#deleteCustomerModal<?php echo $customer['id']; ?>">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                <?php if ($total_pages > 1): ?>
+                <nav aria-label="Customer pagination">
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
+                            <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page - 1])); ?>">Previous</a>
+                        </li>
+                        
+                        <?php for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): ?>
+                        <li class="page-item <?php echo $i === $page ? 'active' : ''; ?>">
+                            <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $i])); ?>"><?php echo $i; ?></a>
+                        </li>
+                        <?php endfor; ?>
+                        
+                        <li class="page-item <?php echo $page >= $total_pages ? 'disabled' : ''; ?>">
+                            <a class="page-link" href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page + 1])); ?>">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -764,11 +845,58 @@ function getCustomerDetails($customer_id) {
     </div>
     <?php endforeach; ?>
 
+    <!-- Customer Details Modal -->
+    <div class="modal fade" id="customerDetailsModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-user me-2"></i>
+                        Customer Details
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="customerDetailsContent">
+                    <!-- Content will be loaded dynamically -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         function viewCustomerDetails(customerId) {
-            // Implement customer details view
-            alert('Customer details view will be implemented here for customer ID: ' + customerId);
+            // Show loading state
+            document.getElementById('customerDetailsContent').innerHTML = `
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading customer details...</p>
+                </div>
+            `;
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('customerDetailsModal'));
+            modal.show();
+            
+            // Fetch customer details via AJAX
+            fetch(`customer_details.php?customer_id=${customerId}`)
+                .then(response => response.text())
+                .then(html => {
+                    document.getElementById('customerDetailsContent').innerHTML = html;
+                })
+                .catch(error => {
+                    document.getElementById('customerDetailsContent').innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Error loading customer details. Please try again.
+                        </div>
+                    `;
+                });
         }
     </script>
 </body>

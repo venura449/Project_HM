@@ -112,7 +112,14 @@ $adminDetails = getAdminDetails($currentAdmin['id']);
         .sidebar {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
+            height: 100vh;
             color: white;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 250px;
+            overflow-y: auto;
+            z-index: 1000;
         }
         .sidebar .nav-link {
             color: rgba(255, 255, 255, 0.8);
@@ -127,6 +134,7 @@ $adminDetails = getAdminDetails($currentAdmin['id']);
         }
         .main-content {
             padding: 20px;
+            margin-left: 250px;
         }
         .card {
             border: none;
@@ -136,6 +144,7 @@ $adminDetails = getAdminDetails($currentAdmin['id']);
         .navbar {
             background: white;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-left: 250px;
         }
         .alert {
             border-radius: 10px;
@@ -157,238 +166,238 @@ $adminDetails = getAdminDetails($currentAdmin['id']);
         .btn {
             border-radius: 10px;
         }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+            }
+            .main-content {
+                margin-left: 0;
+            }
+            .navbar {
+                margin-left: 0;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Sidebar -->
-            <div class="col-md-3 col-lg-2 px-0">
-                <div class="sidebar p-3">
-                    <div class="text-center mb-4">
-                        <i class="fas fa-user-shield fa-2x mb-2"></i>
-                        <h5>Admin Panel</h5>
-                        <small>Boomerang Project</small>
+    <!-- Sidebar -->
+    <div class="sidebar p-3">
+        <div class="text-center mb-4">
+            <i class="fas fa-user-shield fa-2x mb-2"></i>
+            <h5>Admin Panel</h5>
+            <small>Boomerang Project</small>
+        </div>
+        
+        <nav class="nav flex-column">
+            <a class="nav-link" href="../dashboard.php">
+                <i class="fas fa-tachometer-alt me-2"></i>
+                Dashboard
+            </a>
+            <a class="nav-link" href="customers.php">
+                <i class="fas fa-users me-2"></i>
+                Customers
+            </a>
+            <a class="nav-link" href="bookings.php">
+                <i class="fas fa-calendar-check me-2"></i>
+                Bookings
+            </a>
+            <?php if (isSuperAdmin()): ?>
+            <a class="nav-link" href="manage_admins.php">
+                <i class="fas fa-user-cog me-2"></i>
+                Manage Admins
+            </a>
+            <?php endif; ?>
+            <a class="nav-link active" href="profile.php">
+                <i class="fas fa-user me-2"></i>
+                Profile
+            </a>
+            <?php if (isSuperAdmin()): ?>
+            <a class="nav-link" href="settings.php">
+                <i class="fas fa-cog me-2"></i>
+                Settings
+            </a>
+            <?php endif; ?>
+            <hr class="my-3">
+            <a class="nav-link" href="../logout.php">
+                <i class="fas fa-sign-out-alt me-2"></i>
+                Logout
+            </a>
+        </nav>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Top Navbar -->
+        <nav class="navbar navbar-expand-lg">
+            <div class="container-fluid">
+                <h4 class="mb-0">Profile</h4>
+                <div class="navbar-nav ms-auto">
+                    <div class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle me-1"></i>
+                            <?php echo htmlspecialchars($currentAdmin['full_name']); ?>
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="profile.php">Profile</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="../logout.php">Logout</a></li>
+                        </ul>
                     </div>
-                    
-                    <nav class="nav flex-column">
-                        <a class="nav-link" href="../dashboard.php">
-                            <i class="fas fa-tachometer-alt me-2"></i>
-                            Dashboard
-                        </a>
-                        <?php if (isSuperAdmin()): ?>
-                        <a class="nav-link" href="manage_admins.php">
-                            <i class="fas fa-users me-2"></i>
-                            Manage Admins
-                        </a>
-                        <?php endif; ?>
-                        <a class="nav-link active" href="profile.php">
-                            <i class="fas fa-user me-2"></i>
-                            Profile
-                        </a>
-                        <?php if (isSuperAdmin()): ?>
-                        <a class="nav-link" href="settings.php">
-                            <i class="fas fa-cog me-2"></i>
-                            Settings
-                        </a>
-                        <?php endif; ?>
-                        <hr class="my-3">
-                        <a class="nav-link" href="../logout.php">
-                            <i class="fas fa-sign-out-alt me-2"></i>
-                            Logout
-                        </a>
-                    </nav>
+                </div>
+            </div>
+        </nav>
+        
+        <div class="container-fluid">
+            <div class="row">
+                <!-- Profile Information -->
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header profile-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-user me-2"></i>
+                                Profile Information
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="POST" action="">
+                                <input type="hidden" name="action" value="update_profile">
+                                
+                                <div class="mb-3">
+                                    <label for="username" class="form-label">Username</label>
+                                    <input type="text" class="form-control" id="username" 
+                                           value="<?php echo htmlspecialchars($currentAdmin['username']); ?>" readonly>
+                                    <small class="text-muted">Username cannot be changed</small>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="full_name" class="form-label">Full Name</label>
+                                    <input type="text" class="form-control" id="full_name" name="full_name" 
+                                           value="<?php echo htmlspecialchars($currentAdmin['full_name']); ?>" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="email" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="email" name="email" 
+                                           value="<?php echo htmlspecialchars($currentAdmin['email']); ?>" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="role" class="form-label">Role</label>
+                                    <input type="text" class="form-control" id="role" 
+                                           value="<?php echo ucfirst(str_replace('_', ' ', $currentAdmin['role'])); ?>" readonly>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i>
+                                    Update Profile
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Change Password -->
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header profile-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-lock me-2"></i>
+                                Change Password
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="POST" action="">
+                                <input type="hidden" name="action" value="change_password">
+                                
+                                <div class="mb-3">
+                                    <label for="current_password" class="form-label">Current Password</label>
+                                    <input type="password" class="form-control" id="current_password" 
+                                           name="current_password" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="new_password" class="form-label">New Password</label>
+                                    <input type="password" class="form-control" id="new_password" 
+                                           name="new_password" required>
+                                    <small class="text-muted">Minimum 6 characters</small>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="confirm_password" class="form-label">Confirm New Password</label>
+                                    <input type="password" class="form-control" id="confirm_password" 
+                                           name="confirm_password" required>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-warning">
+                                    <i class="fas fa-key me-2"></i>
+                                    Change Password
+                                </button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
             </div>
             
-            <!-- Main Content -->
-            <div class="col-md-9 col-lg-10">
-                <!-- Top Navbar -->
-                <nav class="navbar navbar-expand-lg">
-                    <div class="container-fluid">
-                        <h4 class="mb-0">Profile</h4>
-                        <div class="navbar-nav ms-auto">
-                            <div class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                                    <i class="fas fa-user-circle me-1"></i>
-                                    <?php echo htmlspecialchars($currentAdmin['full_name']); ?>
-                                </a>
-                                <ul class="dropdown-menu">
-                                    <li><a class="dropdown-item" href="profile.php">Profile</a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="../logout.php">Logout</a></li>
-                                </ul>
-                            </div>
+            <!-- Account Details -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Account Details
+                            </h5>
                         </div>
-                    </div>
-                </nav>
-                
-                <div class="main-content">
-                    <!-- Alerts -->
-                    <?php if ($error): ?>
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            <?php echo htmlspecialchars($error); ?>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    <?php endif; ?>
-                    
-                    <?php if ($success): ?>
-                        <div class="alert alert-success alert-dismissible fade show" role="alert">
-                            <i class="fas fa-check-circle me-2"></i>
-                            <?php echo htmlspecialchars($success); ?>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    <?php endif; ?>
-                    
-                    <div class="row">
-                        <!-- Profile Information -->
-                        <div class="col-md-6 mb-4">
-                            <div class="card">
-                                <div class="card-header profile-header">
-                                    <h5 class="card-title mb-0">
-                                        <i class="fas fa-user me-2"></i>
-                                        Profile Information
-                                    </h5>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <table class="table table-borderless">
+                                        <tr>
+                                            <td><strong>Account ID:</strong></td>
+                                            <td><?php echo $adminDetails['id']; ?></td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Status:</strong></td>
+                                            <td>
+                                                <span class="badge bg-<?php echo $adminDetails['is_active'] ? 'success' : 'danger'; ?>">
+                                                    <?php echo $adminDetails['is_active'] ? 'Active' : 'Inactive'; ?>
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Created:</strong></td>
+                                            <td><?php echo date('M j, Y g:i A', strtotime($adminDetails['created_at'])); ?></td>
+                                        </tr>
+                                    </table>
                                 </div>
-                                <div class="card-body">
-                                    <form method="POST" action="">
-                                        <input type="hidden" name="action" value="update_profile">
-                                        
-                                        <div class="mb-3">
-                                            <label for="username" class="form-label">Username</label>
-                                            <input type="text" class="form-control" id="username" 
-                                                   value="<?php echo htmlspecialchars($currentAdmin['username']); ?>" readonly>
-                                            <small class="text-muted">Username cannot be changed</small>
-                                        </div>
-                                        
-                                        <div class="mb-3">
-                                            <label for="full_name" class="form-label">Full Name</label>
-                                            <input type="text" class="form-control" id="full_name" name="full_name" 
-                                                   value="<?php echo htmlspecialchars($currentAdmin['full_name']); ?>" required>
-                                        </div>
-                                        
-                                        <div class="mb-3">
-                                            <label for="email" class="form-label">Email</label>
-                                            <input type="email" class="form-control" id="email" name="email" 
-                                                   value="<?php echo htmlspecialchars($currentAdmin['email']); ?>" required>
-                                        </div>
-                                        
-                                        <div class="mb-3">
-                                            <label for="role" class="form-label">Role</label>
-                                            <input type="text" class="form-control" id="role" 
-                                                   value="<?php echo ucfirst(str_replace('_', ' ', $currentAdmin['role'])); ?>" readonly>
-                                        </div>
-                                        
-                                        <button type="submit" class="btn btn-primary">
-                                            <i class="fas fa-save me-2"></i>
-                                            Update Profile
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Change Password -->
-                        <div class="col-md-6 mb-4">
-                            <div class="card">
-                                <div class="card-header profile-header">
-                                    <h5 class="card-title mb-0">
-                                        <i class="fas fa-lock me-2"></i>
-                                        Change Password
-                                    </h5>
-                                </div>
-                                <div class="card-body">
-                                    <form method="POST" action="">
-                                        <input type="hidden" name="action" value="change_password">
-                                        
-                                        <div class="mb-3">
-                                            <label for="current_password" class="form-label">Current Password</label>
-                                            <input type="password" class="form-control" id="current_password" 
-                                                   name="current_password" required>
-                                        </div>
-                                        
-                                        <div class="mb-3">
-                                            <label for="new_password" class="form-label">New Password</label>
-                                            <input type="password" class="form-control" id="new_password" 
-                                                   name="new_password" required>
-                                            <small class="text-muted">Minimum 6 characters</small>
-                                        </div>
-                                        
-                                        <div class="mb-3">
-                                            <label for="confirm_password" class="form-label">Confirm New Password</label>
-                                            <input type="password" class="form-control" id="confirm_password" 
-                                                   name="confirm_password" required>
-                                        </div>
-                                        
-                                        <button type="submit" class="btn btn-warning">
-                                            <i class="fas fa-key me-2"></i>
-                                            Change Password
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Account Details -->
-                    <div class="row">
-                        <div class="col-12">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h5 class="card-title mb-0">
-                                        <i class="fas fa-info-circle me-2"></i>
-                                        Account Details
-                                    </h5>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <table class="table table-borderless">
-                                                <tr>
-                                                    <td><strong>Account ID:</strong></td>
-                                                    <td><?php echo $adminDetails['id']; ?></td>
-                                                </tr>
-                                                <tr>
-                                                    <td><strong>Status:</strong></td>
-                                                    <td>
-                                                        <span class="badge bg-<?php echo $adminDetails['is_active'] ? 'success' : 'danger'; ?>">
-                                                            <?php echo $adminDetails['is_active'] ? 'Active' : 'Inactive'; ?>
-                                                        </span>
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td><strong>Created:</strong></td>
-                                                    <td><?php echo date('M j, Y g:i A', strtotime($adminDetails['created_at'])); ?></td>
-                                                </tr>
-                                            </table>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <table class="table table-borderless">
-                                                <tr>
-                                                    <td><strong>Last Login:</strong></td>
-                                                    <td>
-                                                        <?php echo $adminDetails['last_login'] ? date('M j, Y g:i A', strtotime($adminDetails['last_login'])) : 'Never'; ?>
-                                                    </td>
-                                                </tr>
-                                                <tr>
-                                                    <td><strong>Current Session:</strong></td>
-                                                    <td><?php echo date('M j, Y g:i A', $_SESSION['login_time']); ?></td>
-                                                </tr>
-                                                <tr>
-                                                    <td><strong>Session Duration:</strong></td>
-                                                    <td>
-                                                        <?php 
-                                                        $duration = time() - $_SESSION['login_time'];
-                                                        $hours = floor($duration / 3600);
-                                                        $minutes = floor(($duration % 3600) / 60);
-                                                        echo $hours . 'h ' . $minutes . 'm';
-                                                        ?>
-                                                    </td>
-                                                </tr>
-                                            </table>
-                                        </div>
-                                    </div>
+                                <div class="col-md-6">
+                                    <table class="table table-borderless">
+                                        <tr>
+                                            <td><strong>Last Login:</strong></td>
+                                            <td>
+                                                <?php echo $adminDetails['last_login'] ? date('M j, Y g:i A', strtotime($adminDetails['last_login'])) : 'Never'; ?>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Current Session:</strong></td>
+                                            <td><?php echo date('M j, Y g:i A', $_SESSION['login_time']); ?></td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Session Duration:</strong></td>
+                                            <td>
+                                                <?php 
+                                                $duration = time() - $_SESSION['login_time'];
+                                                $hours = floor($duration / 3600);
+                                                $minutes = floor(($duration % 3600) / 60);
+                                                echo $hours . 'h ' . $minutes . 'm';
+                                                ?>
+                                            </td>
+                                        </tr>
+                                    </table>
                                 </div>
                             </div>
                         </div>

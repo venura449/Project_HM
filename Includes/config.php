@@ -71,51 +71,53 @@ function initializeDatabase() {
             id INT AUTO_INCREMENT PRIMARY KEY,
             customer_id INT NOT NULL,
             booking_number VARCHAR(20) UNIQUE NOT NULL,
-            service_type VARCHAR(100) NOT NULL,
-            booking_date DATE NOT NULL,
-            booking_time TIME NOT NULL,
-            duration INT DEFAULT 60,
-            status ENUM('pending', 'confirmed', 'completed', 'cancelled', 'no_show') DEFAULT 'pending',
+            room_type VARCHAR(100) NOT NULL,
+            check_in_date DATE NOT NULL,
+            check_out_date DATE NOT NULL,
+            num_guests INT DEFAULT 1,
+            num_rooms INT DEFAULT 1,
+            status ENUM('pending', 'confirmed', 'checked_in', 'checked_out', 'cancelled', 'no_show') DEFAULT 'pending',
             total_amount DECIMAL(10,2) NOT NULL,
             payment_status ENUM('pending', 'paid', 'refunded', 'partial') DEFAULT 'pending',
             payment_method VARCHAR(50),
-            notes TEXT,
+            special_requests TEXT,
+            room_number VARCHAR(20),
             created_by INT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
             FOREIGN KEY (created_by) REFERENCES admins(id) ON DELETE SET NULL,
-            INDEX idx_booking_date (booking_date),
+            INDEX idx_check_in_date (check_in_date),
+            INDEX idx_check_out_date (check_out_date),
             INDEX idx_status (status),
             INDEX idx_payment_status (payment_status)
         )";
         $pdo->exec($sql);
         
-        // Create sales table
-        $sql = "CREATE TABLE IF NOT EXISTS sales (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            booking_id INT,
-            customer_id INT NOT NULL,
-            sale_number VARCHAR(20) UNIQUE NOT NULL,
-            product_name VARCHAR(100) NOT NULL,
-            quantity INT DEFAULT 1,
-            unit_price DECIMAL(10,2) NOT NULL,
-            total_price DECIMAL(10,2) NOT NULL,
-            discount_amount DECIMAL(10,2) DEFAULT 0.00,
-            final_amount DECIMAL(10,2) NOT NULL,
-            payment_method VARCHAR(50),
-            payment_status ENUM('pending', 'paid', 'refunded') DEFAULT 'pending',
-            sale_date DATE NOT NULL,
-            created_by INT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE SET NULL,
-            FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
-            FOREIGN KEY (created_by) REFERENCES admins(id) ON DELETE SET NULL,
-            INDEX idx_sale_date (sale_date),
-            INDEX idx_payment_status (payment_status)
-        )";
-        $pdo->exec($sql);
+        // Remove sales table if exists
+        $pdo->exec("DROP TABLE IF EXISTS sales");
+        
+        // Insert sample bookings
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM bookings");
+        $stmt->execute();
+        if ($stmt->fetchColumn() == 0) {
+            $bookings = [
+                [1, 'BK001', 'Deluxe Room', '2024-01-15', '2024-01-17', 2, 1, 'checked_out', 299.00, 'paid', 'credit_card', null, null, 1],
+                [2, 'BK002', 'Suite', '2024-01-16', '2024-01-19', 4, 1, 'checked_out', 599.00, 'paid', 'cash', null, null, 1],
+                [3, 'BK003', 'Standard Room', '2024-01-17', '2024-01-18', 1, 1, 'checked_out', 149.00, 'paid', 'credit_card', null, null, 1],
+                [4, 'BK004', 'Family Room', '2024-01-18', '2024-01-21', 6, 1, 'confirmed', 449.00, 'pending', 'credit_card', null, null, 1],
+                [5, 'BK005', 'Deluxe Room', '2024-01-19', '2024-01-20', 2, 1, 'pending', 199.00, 'pending', 'cash', null, null, 1],
+                [6, 'BK006', 'Presidential Suite', '2024-01-20', '2024-01-23', 2, 1, 'pending', 899.00, 'pending', 'credit_card', null, null, 1],
+                [7, 'BK007', 'Standard Room', '2024-01-21', '2024-01-22', 1, 1, 'pending', 129.00, 'pending', 'cash', null, null, 1],
+                [8, 'BK008', 'Deluxe Room', '2024-01-22', '2024-01-24', 2, 1, 'pending', 398.00, 'pending', 'credit_card', null, null, 1],
+                [9, 'BK009', 'Suite', '2024-01-23', '2024-01-25', 3, 1, 'pending', 499.00, 'pending', 'cash', null, null, 1],
+                [10, 'BK010', 'Standard Room', '2024-01-24', '2024-01-26', 2, 1, 'pending', 258.00, 'pending', 'credit_card', null, null, 1]
+            ];
+            $stmt = $pdo->prepare("INSERT INTO bookings (customer_id, booking_number, room_type, check_in_date, check_out_date, num_guests, num_rooms, status, total_amount, payment_status, payment_method, special_requests, room_number, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            foreach ($bookings as $booking) {
+                $stmt->execute($booking);
+            }
+        }
         
         // Create system_settings table
         $sql = "CREATE TABLE IF NOT EXISTS system_settings (
@@ -172,44 +174,6 @@ function insertSampleData($pdo) {
         $stmt = $pdo->prepare("INSERT INTO customers (first_name, last_name, email, phone, address, city, state, zip_code, customer_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
         foreach ($customers as $customer) {
             $stmt->execute($customer);
-        }
-        
-        // Insert sample bookings
-        $bookings = [
-            [1, 'BK001', 'Haircut & Styling', '2024-01-15', '10:00:00', 60, 'completed', 45.00, 'paid', 'credit_card'],
-            [2, 'BK002', 'Manicure & Pedicure', '2024-01-16', '14:30:00', 90, 'completed', 75.00, 'paid', 'cash'],
-            [3, 'BK003', 'Facial Treatment', '2024-01-17', '11:00:00', 120, 'completed', 120.00, 'paid', 'credit_card'],
-            [4, 'BK004', 'Hair Coloring', '2024-01-18', '15:00:00', 180, 'confirmed', 150.00, 'pending', 'credit_card'],
-            [5, 'BK005', 'Massage Therapy', '2024-01-19', '09:00:00', 60, 'pending', 80.00, 'pending', 'cash'],
-            [6, 'BK006', 'Spa Package', '2024-01-20', '13:00:00', 240, 'pending', 200.00, 'pending', 'credit_card'],
-            [7, 'BK007', 'Haircut & Beard Trim', '2024-01-21', '16:00:00', 45, 'pending', 35.00, 'pending', 'cash'],
-            [8, 'BK008', 'Nail Art', '2024-01-22', '12:00:00', 60, 'pending', 50.00, 'pending', 'credit_card'],
-            [9, 'BK009', 'Body Treatment', '2024-01-23', '10:30:00', 90, 'pending', 95.00, 'pending', 'cash'],
-            [10, 'BK010', 'Hair Styling', '2024-01-24', '14:00:00', 60, 'pending', 55.00, 'pending', 'credit_card']
-        ];
-        
-        $stmt = $pdo->prepare("INSERT INTO bookings (customer_id, booking_number, service_type, booking_date, booking_time, duration, status, total_amount, payment_status, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        foreach ($bookings as $booking) {
-            $stmt->execute($booking);
-        }
-        
-        // Insert sample sales
-        $sales = [
-            [1, 1, 'SL001', 'Hair Products', 2, 25.00, 50.00, 5.00, 45.00, 'credit_card', 'paid', '2024-01-15'],
-            [2, 2, 'SL002', 'Nail Polish', 3, 15.00, 45.00, 0.00, 45.00, 'cash', 'paid', '2024-01-16'],
-            [3, 3, 'SL003', 'Skincare Products', 1, 80.00, 80.00, 10.00, 70.00, 'credit_card', 'paid', '2024-01-17'],
-            [4, 4, 'SL004', 'Hair Dye', 1, 45.00, 45.00, 0.00, 45.00, 'credit_card', 'pending', '2024-01-18'],
-            [5, 5, 'SL005', 'Massage Oil', 1, 30.00, 30.00, 5.00, 25.00, 'cash', 'pending', '2024-01-19'],
-            [6, 6, 'SL006', 'Spa Gift Set', 1, 75.00, 75.00, 15.00, 60.00, 'credit_card', 'pending', '2024-01-20'],
-            [7, 7, 'SL007', 'Beard Oil', 1, 20.00, 20.00, 0.00, 20.00, 'cash', 'pending', '2024-01-21'],
-            [8, 8, 'SL008', 'Nail Art Supplies', 2, 18.00, 36.00, 0.00, 36.00, 'credit_card', 'pending', '2024-01-22'],
-            [9, 9, 'SL009', 'Body Lotion', 1, 40.00, 40.00, 8.00, 32.00, 'cash', 'pending', '2024-01-23'],
-            [10, 10, 'SL010', 'Hair Accessories', 3, 12.00, 36.00, 0.00, 36.00, 'credit_card', 'pending', '2024-01-24']
-        ];
-        
-        $stmt = $pdo->prepare("INSERT INTO sales (booking_id, customer_id, sale_number, product_name, quantity, unit_price, total_price, discount_amount, final_amount, payment_method, payment_status, sale_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        foreach ($sales as $sale) {
-            $stmt->execute($sale);
         }
         
         // Update customer totals
