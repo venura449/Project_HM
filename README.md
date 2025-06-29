@@ -4,7 +4,7 @@
 **Boomerang Project - Hotel Booking Management System**
 
 ## 🔹 b) Task Option Chosen
-**Task Option 3** - Hotel Booking Management System
+**Task Option 1** - Web-Based Admin Dashboard (Hotel Booking Management System)
 
 ## 🔹 c) Technologies Used
 - **Backend**: PHP 7.4+
