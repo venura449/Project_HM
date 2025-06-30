@@ -349,7 +349,7 @@ $chartData = getChartData();
         .navbar {
             background: white;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            margin-left: 250px;
+            margin-left: 0;
         }
         .alert { 
             border-radius: 10px; 
@@ -455,7 +455,7 @@ $chartData = getChartData();
     <!-- Main Content -->
     <div class="main-content">
         <!-- Top Navbar -->
-        <nav class="navbar navbar-expand-lg">
+        <nav class="navbar navbar-expand-lg w-100 mb-4" style="left:0;right:0;position:relative;margin-left:0;">
             <div class="container-fluid">
                 <h4 class="mb-0">Hotel Booking Management & Analytics</h4>
                 <div class="navbar-nav ms-auto">
@@ -477,6 +477,77 @@ $chartData = getChartData();
                 </div>
             </div>
         </nav>
+        
+        <!-- Add Booking Modal -->
+        <div class="modal fade" id="addBookingModal" tabindex="-1">
+          <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+              <form method="POST" action="">
+                <div class="modal-header">
+                  <h5 class="modal-title">Add New Booking</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                  <input type="hidden" name="action" value="add_booking">
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label for="customer_id" class="form-label">Customer</label>
+                      <select class="form-select" id="customer_id" name="customer_id" required>
+                        <option value="">Select Customer</option>
+                        <?php foreach ($customers as $customer): ?>
+                          <option value="<?php echo $customer['id']; ?>">
+                            <?php echo htmlspecialchars($customer['first_name'] . ' ' . $customer['last_name'] . ' (' . $customer['email'] . ')'); ?>
+                          </option>
+                        <?php endforeach; ?>
+                      </select>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="room_type" class="form-label">Room Type</label>
+                      <input type="text" class="form-control" id="room_type" name="room_type" required>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="check_in_date" class="form-label">Check-in Date</label>
+                      <input type="date" class="form-control" id="check_in_date" name="check_in_date" required>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="check_out_date" class="form-label">Check-out Date</label>
+                      <input type="date" class="form-control" id="check_out_date" name="check_out_date" required>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="num_guests" class="form-label">Number of Guests</label>
+                      <input type="number" class="form-control" id="num_guests" name="num_guests" min="1" value="1" required>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="num_rooms" class="form-label">Number of Rooms</label>
+                      <input type="number" class="form-control" id="num_rooms" name="num_rooms" min="1" value="1" required>
+                    </div>
+                    <div class="col-md-4">
+                      <label for="total_amount" class="form-label">Total Amount ($)</label>
+                      <input type="number" step="0.01" class="form-control" id="total_amount" name="total_amount" min="0" value="0" required>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="payment_method" class="form-label">Payment Method</label>
+                      <select class="form-select" id="payment_method" name="payment_method">
+                        <option value="">Select Method</option>
+                        <option value="cash">Cash</option>
+                        <option value="card">Card</option>
+                        <option value="online">Online</option>
+                      </select>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="special_requests" class="form-label">Special Requests</label>
+                      <textarea class="form-control" id="special_requests" name="special_requests" rows="2"></textarea>
+                    </div>
+                  </div>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                  <button type="submit" class="btn btn-primary">Add Booking</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
         
         <!-- Alerts -->
         <?php if ($error): ?>
@@ -847,10 +918,7 @@ $chartData = getChartData();
                             </select>
                         </div>
                         
-                        <div class="alert alert-info">
-                            <i class="fas fa-info-circle me-2"></i>
-                            <strong>Note:</strong> When a booking is marked as "Checked Out" and "Paid", a sale record will be automatically created.
-                        </div>
+
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>

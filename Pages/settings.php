@@ -203,6 +203,7 @@ $systemStats = getSystemStats();
         .navbar {
             background: white;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-left: 0;
         }
         .alert {
             border-radius: 10px;
@@ -271,7 +272,7 @@ $systemStats = getSystemStats();
             <!-- Main Content -->
             <div class="col-md-9 col-lg-10">
                 <!-- Top Navbar -->
-                <nav class="navbar navbar-expand-lg">
+                <nav class="navbar navbar-expand-lg w-100 mb-4" style="left:0;right:0;position:relative;margin-left:0;">
                     <div class="container-fluid">
                         <h4 class="mb-0">System Settings</h4>
                         <div class="navbar-nav ms-auto">

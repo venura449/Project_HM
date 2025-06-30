@@ -49,19 +49,6 @@ function getAdminStats() {
         $stmt = $pdo->query("SELECT COUNT(*) FROM bookings WHERE status = 'completed'");
         $completedBookings = $stmt->fetchColumn();
         
-        // Sales stats
-        $stmt = $pdo->query("SELECT COUNT(*) FROM sales");
-        $totalSales = $stmt->fetchColumn();
-        
-        $stmt = $pdo->query("SELECT COALESCE(SUM(final_amount), 0) FROM sales WHERE payment_status = 'paid'");
-        $totalRevenue = $stmt->fetchColumn();
-        
-        $stmt = $pdo->query("SELECT COALESCE(SUM(final_amount), 0) FROM sales WHERE sale_date = CURDATE() AND payment_status = 'paid'");
-        $todayRevenue = $stmt->fetchColumn();
-        
-        $stmt = $pdo->query("SELECT COALESCE(SUM(final_amount), 0) FROM sales WHERE payment_status = 'pending'");
-        $pendingPayments = $stmt->fetchColumn();
-        
         return [
             'total_admins' => $totalAdmins,
             'active_admins' => $activeAdmins,
@@ -73,11 +60,7 @@ function getAdminStats() {
             'total_bookings' => $totalBookings,
             'today_bookings' => $todayBookings,
             'pending_bookings' => $pendingBookings,
-            'completed_bookings' => $completedBookings,
-            'total_sales' => $totalSales,
-            'total_revenue' => $totalRevenue,
-            'today_revenue' => $todayRevenue,
-            'pending_payments' => $pendingPayments
+            'completed_bookings' => $completedBookings
         ];
     } catch(PDOException $e) {
         return [
@@ -91,11 +74,7 @@ function getAdminStats() {
             'total_bookings' => 0,
             'today_bookings' => 0,
             'pending_bookings' => 0,
-            'completed_bookings' => 0,
-            'total_sales' => 0,
-            'total_revenue' => 0,
-            'today_revenue' => 0,
-            'pending_payments' => 0
+            'completed_bookings' => 0
         ];
     }
 }
@@ -105,53 +84,27 @@ function getChartData() {
     try {
         $pdo = getDBConnection();
         
-        // Monthly revenue (last 6 months)
-        $sql = "SELECT DATE_FORMAT(sale_date, '%Y-%m') as month, 
-                       SUM(final_amount) as revenue 
-                FROM sales 
-                WHERE sale_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) 
-                AND payment_status = 'paid'
-                GROUP BY DATE_FORMAT(sale_date, '%Y-%m') 
-                ORDER BY month";
-        $stmt = $pdo->query($sql);
-        $monthly_revenue = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
         // Monthly bookings (last 6 months)
-        $sql = "SELECT DATE_FORMAT(check_in_date, '%Y-%m') as month, 
-                       COUNT(*) as count 
-                FROM bookings 
-                WHERE check_in_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) 
-                GROUP BY DATE_FORMAT(check_in_date, '%Y-%m') 
-                ORDER BY month";
+        $sql = "SELECT DATE_FORMAT(check_in_date, '%Y-%m') as month, COUNT(*) as count FROM bookings WHERE check_in_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) GROUP BY DATE_FORMAT(check_in_date, '%Y-%m') ORDER BY month";
         $stmt = $pdo->query($sql);
         $monthly_bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         // Customer types distribution
-        $sql = "SELECT customer_type, COUNT(*) as count 
-                FROM customers 
-                GROUP BY customer_type";
+        $sql = "SELECT customer_type, COUNT(*) as count FROM customers GROUP BY customer_type";
         $stmt = $pdo->query($sql);
         $customer_types = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         // Booking status distribution
-        $sql = "SELECT status, COUNT(*) as count 
-                FROM bookings 
-                GROUP BY status";
+        $sql = "SELECT status, COUNT(*) as count FROM bookings GROUP BY status";
         $stmt = $pdo->query($sql);
         $booking_status = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         // Customer growth (last 6 months)
-        $sql = "SELECT DATE_FORMAT(created_at, '%Y-%m') as month, 
-                       COUNT(*) as count 
-                FROM customers 
-                WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) 
-                GROUP BY DATE_FORMAT(created_at, '%Y-%m') 
-                ORDER BY month";
+        $sql = "SELECT DATE_FORMAT(created_at, '%Y-%m') as month, COUNT(*) as count FROM customers WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) GROUP BY DATE_FORMAT(created_at, '%Y-%m') ORDER BY month";
         $stmt = $pdo->query($sql);
         $customer_growth = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         return [
-            'monthly_revenue' => $monthly_revenue,
             'monthly_bookings' => $monthly_bookings,
             'customer_types' => $customer_types,
             'booking_status' => $booking_status,
@@ -159,7 +112,6 @@ function getChartData() {
         ];
     } catch(PDOException $e) {
         return [
-            'monthly_revenue' => [],
             'monthly_bookings' => [],
             'customer_types' => [],
             'booking_status' => [],
@@ -168,9 +120,17 @@ function getChartData() {
     }
 }
 
+?>
+
+<?php
 $stats = getAdminStats();
 $chartData = getChartData();
 ?>
+
+
+
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -242,7 +202,7 @@ $chartData = getChartData();
         .navbar {
             background: white;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            margin-left: 250px;
+            margin-left:0;
         }
         .alert {
             border-radius: 10px;
@@ -318,7 +278,7 @@ $chartData = getChartData();
     <!-- Main Content -->
     <div class="main-content">
         <!-- Top Navbar -->
-        <nav class="navbar navbar-expand-lg">
+        <nav class="navbar navbar-expand-lg mb-4">
             <div class="container-fluid">
                 <h4 class="mb-0">Dashboard</h4>
                 <div class="navbar-nav ms-auto">
@@ -371,64 +331,6 @@ $chartData = getChartData();
             </div>
         </div>
         
-        <!-- Statistics Cards -->
-        <div class="row mb-4">
-            <div class="col-md-2 mb-3">
-                <div class="card stat-card">
-                    <div class="card-body text-center">
-                        <i class="fas fa-users fa-2x mb-2"></i>
-                        <h3><?php echo $stats['total_customers']; ?></h3>
-                        <p class="mb-0">Total Customers</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-2 mb-3">
-                <div class="card stat-card secondary">
-                    <div class="card-body text-center">
-                        <i class="fas fa-user-check fa-2x mb-2"></i>
-                        <h3><?php echo $stats['active_customers']; ?></h3>
-                        <p class="mb-0">Active Customers</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-2 mb-3">
-                <div class="card stat-card success">
-                    <div class="card-body text-center">
-                        <i class="fas fa-calendar-check fa-2x mb-2"></i>
-                        <h3><?php echo $stats['total_bookings']; ?></h3>
-                        <p class="mb-0">Total Bookings</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-2 mb-3">
-                <div class="card stat-card warning">
-                    <div class="card-body text-center">
-                        <i class="fas fa-shopping-cart fa-2x mb-2"></i>
-                        <h3><?php echo $stats['total_sales']; ?></h3>
-                        <p class="mb-0">Total Sales</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-2 mb-3">
-                <div class="card stat-card info">
-                    <div class="card-body text-center">
-                        <i class="fas fa-dollar-sign fa-2x mb-2"></i>
-                        <h3>$<?php echo number_format($stats['total_revenue'], 0); ?>K</h3>
-                        <p class="mb-0">Total Revenue</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-2 mb-3">
-                <div class="card stat-card dark">
-                    <div class="card-body text-center">
-                        <i class="fas fa-crown fa-2x mb-2"></i>
-                        <h3><?php echo $stats['vip_customers']; ?></h3>
-                        <p class="mb-0">VIP Customers</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
         <!-- Charts Row -->
         <div class="row mb-4">
             <div class="col-md-8 mb-4">
@@ -436,7 +338,7 @@ $chartData = getChartData();
                     <div class="card-header">
                         <h5 class="card-title mb-0">
                             <i class="fas fa-chart-area me-2"></i>
-                            Revenue & Bookings Trend (Last 6 Months)
+                            Bookings Trend (Last 6 Months)
                         </h5>
                     </div>
                     <div class="card-body">
@@ -549,12 +451,6 @@ $chartData = getChartData();
                                 <strong>Last Login:</strong> 
                                 <?php echo isset($_SESSION['login_time']) ? date('M j, Y g:i A', $_SESSION['login_time']) : 'Unknown'; ?>
                             </li>
-                            <li class="mb-2">
-                                <strong>Today's Revenue:</strong> $<?php echo number_format($stats['today_revenue'], 2); ?>
-                            </li>
-                            <li class="mb-2">
-                                <strong>Pending Payments:</strong> $<?php echo number_format($stats['pending_payments'], 2); ?>
-                            </li>
                         </ul>
                     </div>
                 </div>
@@ -569,23 +465,15 @@ $chartData = getChartData();
         const trendChart = new Chart(trendCtx, {
             type: 'line',
             data: {
-                labels: <?php echo json_encode(array_column($chartData['monthly_revenue'], 'month')); ?>,
+                labels: <?php echo json_encode(array_column($chartData['monthly_bookings'], 'month')); ?>,
                 datasets: [{
-                    label: 'Revenue ($)',
-                    data: <?php echo json_encode(array_column($chartData['monthly_revenue'], 'revenue')); ?>,
-                    borderColor: '#667eea',
-                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                    tension: 0.4,
-                    fill: true,
-                    yAxisID: 'y'
-                }, {
                     label: 'Bookings',
                     data: <?php echo json_encode(array_column($chartData['monthly_bookings'], 'count')); ?>,
                     borderColor: '#764ba2',
                     backgroundColor: 'rgba(118, 75, 162, 0.1)',
                     tension: 0.4,
                     fill: true,
-                    yAxisID: 'y1'
+                    yAxisID: 'y'
                 }]
             },
             options: {
@@ -598,20 +486,8 @@ $chartData = getChartData();
                         position: 'left',
                         title: {
                             display: true,
-                            text: 'Revenue ($)'
-                        }
-                    },
-                    y1: {
-                        type: 'linear',
-                        display: true,
-                        position: 'right',
-                        title: {
-                            display: true,
                             text: 'Bookings Count'
-                        },
-                        grid: {
-                            drawOnChartArea: false,
-                        },
+                        }
                     }
                 }
             }

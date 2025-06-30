@@ -148,6 +148,7 @@ $admins = getAllAdmins();
         .navbar {
             background: white;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-left: 0;
         }
         .alert {
             border-radius: 10px;
@@ -175,35 +176,47 @@ $admins = getAllAdmins();
                     </div>
                     
                     <nav class="nav flex-column">
-                        <a class="nav-link" href="../dashboard.php">
-                            <i class="fas fa-tachometer-alt me-2"></i>
-                            Dashboard
-                        </a>
-                        <a class="nav-link active" href="manage_admins.php">
-                            <i class="fas fa-users me-2"></i>
-                            Manage Admins
-                        </a>
-                        <a class="nav-link" href="profile.php">
-                            <i class="fas fa-user me-2"></i>
-                            Profile
-                        </a>
-                        <a class="nav-link" href="settings.php">
-                            <i class="fas fa-cog me-2"></i>
-                            Settings
-                        </a>
-                        <hr class="my-3">
-                        <a class="nav-link" href="../logout.php">
-                            <i class="fas fa-sign-out-alt me-2"></i>
-                            Logout
-                        </a>
-                    </nav>
+            <a class="nav-link" href="../dashboard.php">
+                <i class="fas fa-tachometer-alt me-2"></i>
+                Dashboard
+            </a>
+            <a class="nav-link" href="customers.php">
+                <i class="fas fa-users me-2"></i>
+                Customers
+            </a>
+            <a class="nav-link" href="bookings.php">
+                <i class="fas fa-calendar-check me-2"></i>
+                Bookings
+            </a>
+            <?php if (isSuperAdmin()): ?>
+            <a class="nav-link active" href="manage_admins.php">
+                <i class="fas fa-user-cog me-2"></i>
+                Manage Admins
+            </a>
+            <?php endif; ?>
+            <a class="nav-link" href="profile.php">
+                <i class="fas fa-user me-2"></i>
+                Profile
+            </a>
+            <?php if (isSuperAdmin()): ?>
+            <a class="nav-link" href="settings.php">
+                <i class="fas fa-cog me-2"></i>
+                Settings
+            </a>
+            <?php endif; ?>
+            <hr class="my-3">
+            <a class="nav-link" href="../logout.php">
+                <i class="fas fa-sign-out-alt me-2"></i>
+                Logout
+            </a>
+        </nav>
                 </div>
             </div>
             
             <!-- Main Content -->
             <div class="col-md-9 col-lg-10">
                 <!-- Top Navbar -->
-                <nav class="navbar navbar-expand-lg">
+                <nav class="navbar navbar-expand-lg w-100 mb-4" style="left:0;right:0;position:relative;margin-left:0;">
                     <div class="container-fluid">
                         <h4 class="mb-0">Manage Admins</h4>
                         <div class="navbar-nav ms-auto">

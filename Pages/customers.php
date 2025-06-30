@@ -103,12 +103,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmt->execute([$customer_id]);
                     $hasBookings = $stmt->fetchColumn() > 0;
                     
-                    $stmt = $pdo->prepare("SELECT COUNT(*) FROM sales WHERE customer_id = ?");
-                    $stmt->execute([$customer_id]);
-                    $hasSales = $stmt->fetchColumn() > 0;
-                    
-                    if ($hasBookings || $hasSales) {
-                        $error = 'Cannot delete customer with existing bookings or sales.';
+                    if ($hasBookings) {
+                        $error = 'Cannot delete customer with existing bookings.';
                     } else {
                         $stmt = $pdo->prepare("DELETE FROM customers WHERE id = ?");
                         $stmt->execute([$customer_id]);
@@ -323,7 +319,7 @@ function getCustomerStats($customer_id) {
         .navbar {
             background: white;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            margin-left: 250px;
+            margin-left: 0;
         }
         .alert {
             border-radius: 10px;
@@ -417,7 +413,7 @@ function getCustomerStats($customer_id) {
     <!-- Main Content -->
     <div class="main-content">
         <!-- Top Navbar -->
-        <nav class="navbar navbar-expand-lg">
+        <nav class="navbar navbar-expand-lg w-100 mb-4" style="left:0;right:0;position:relative;margin-left:0;">
             <div class="container-fluid">
                 <h4 class="mb-0">Customer Management</h4>
                 <div class="navbar-nav ms-auto">
